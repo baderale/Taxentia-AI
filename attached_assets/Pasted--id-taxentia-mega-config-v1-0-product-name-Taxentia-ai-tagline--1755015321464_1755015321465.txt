@@ -1,0 +1,251 @@
+{
+  "id": "taxentia-mega-config-v1.0",
+  "product": {
+    "name": "Taxentia.ai",
+    "tagline": "Smarter Tax Intelligence for Professionals",
+    "audience": "CPAs, EAs, and tax attorneys (assume CPA by default)",
+    "principles": [
+      "Professional, concise, authoritative tone",
+      "Every answer: logic chain + pinpoint citations",
+      "Prefer primary authority (IRC/Regs) over secondary (Pubs)",
+      "Disclose assumptions and uncertainty",
+      "Refuse outside U.S. federal tax or when authority is missing"
+    ]
+  },
+
+  "system_prompt": "You are Taxentia, an AI paralegal for CPAs. Answer ONLY with U.S. federal tax authority you can cite precisely (IRC, Treasury Regulations, IRS Publications, Revenue Rulings/Notices, and when relevant, authoritative case law). For EVERY answer, produce—*in this exact order and with headings*: 1) Conclusion (1–3 sentences, practitioner‑ready). 2) Authority (pinpoint citations like: IRC §195(a); Treas. Reg. §1.195‑1; Pub. 535, ch. 7; Rev. Rul. 99‑23; case cites if used). 3) Analysis (step‑by‑step legal reasoning; tie each logical step to specific cited items). 4) Scope & Assumptions (explicitly list facts assumed/omitted). 5) Confidence (0–100 with one‑line justification). Rules: (a) Enforce hierarchy in both retrieval and reasoning (IRC → Regs → Pubs → Rulings/Notices → Cases). (b) Prefer the most recent non‑conflicting authority. (c) If retrieval is stale/empty, say so and provide only high‑level orientation plus what’s needed to answer. (d) No speculation; no non‑official sources; no user‑uploaded materials. (e) Keep language professional for CPAs—no consumer simplifications.",
+
+  "output_contract": {
+    "type": "object",
+    "required": ["conclusion", "authority", "analysis", "scope_assumptions", "confidence"],
+    "properties": {
+      "conclusion": { "type": "string", "maxLength": 800 },
+      "authority": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["source_type", "citation", "url", "version_date"],
+          "properties": {
+            "source_type": { "type": "string", "enum": ["irc", "regs", "pubs", "rulings", "cases"] },
+            "citation": { "type": "string" },
+            "section": { "type": "string" },
+            "pub_number": { "type": "string" },
+            "ruling_number": { "type": "string" },
+            "docket_or_reporter": { "type": "string" },
+            "url": { "type": "string" },
+            "version_date": { "type": "string" },
+            "chunk_id": { "type": "string" }
+          }
+        }
+      },
+      "analysis": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["step", "rationale", "authority_refs"],
+          "properties": {
+            "step": { "type": "string" },
+            "rationale": { "type": "string" },
+            "authority_refs": { "type": "array", "items": { "type": "integer" } }
+          }
+        }
+      },
+      "scope_assumptions": { "type": "string" },
+      "confidence": {
+        "type": "object",
+        "required": ["score", "color"],
+        "properties": {
+          "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+          "color": { "type": "string", "enum": ["red", "amber", "green"] },
+          "notes": { "type": "string" }
+        }
+      }
+    }
+  },
+
+  "retrieval": {
+    "provider": "pinecone",
+    "index": "taxentia-ai",
+    "dimension": 1536,
+    "metric": "cosine",
+    "embedding_model": "openai:text-embedding-3-small",
+    "region": "us-east-1",
+    "capacity_mode": "serverless",
+    "namespaces": {
+      "irc": "irc/YYYY-MM-DD",
+      "regs": "regs/YYYY-MM-DD",
+      "pubs": "pubs/YYYY-MM-DD",
+      "rulings": "rulings/YYYY-MM-DD",
+      "cases": "cases/YYYY-MM-DD"
+    },
+    "metadata_filters_default": [
+      { "field": "source_type", "op": "in", "value": ["irc", "regs", "pubs", "rulings", "cases"] },
+      { "field": "is_latest", "op": "eq", "value": true }
+    ],
+    "hierarchy_order": ["irc", "regs", "pubs", "rulings", "cases"],
+    "k_initial": 8,
+    "k_final": 4,
+    "rerank": "llm-cross-encoder",
+    "max_context_tokens": 6000,
+    "deny_on_empty": true
+  },
+
+  "chunking": {
+    "strategy": "hybrid-structural-semantic",
+    "targets": {
+      "irc": { "max_tokens": 900, "overlap": 120, "anchors": ["§", "subsection", "paragraph"] },
+      "regs": { "max_tokens": 900, "overlap": 120, "anchors": ["§", "paragraph", "example"] },
+      "pubs": { "max_tokens": 1100, "overlap": 120, "anchors": ["chapter", "topic"] },
+      "rulings": { "max_tokens": 1100, "overlap": 120, "anchors": ["Issue", "Facts", "Law", "Holding"] },
+      "cases": { "max_tokens": 1100, "overlap": 120, "anchors": ["Facts", "Issue", "Analysis", "Holding"] }
+    }
+  },
+
+  "metadata_schema": {
+    "required": [
+      "source_type","title","section","reg_citation","pub_number","ruling_number",
+      "issue_date","effective_date","version_date","is_latest","url","citation_text",
+      "checksum","token_count","ingest_run_id"
+    ],
+    "notes": "version_date is immutable; set is_latest=true only for the active snapshot per source_type."
+  },
+
+  "ingestion": {
+    "orchestrator": "n8n",
+    "schedule_cron_et": "0 2 * * *",
+    "pipeline": [
+      "crawl (Apify/Firecrawl) from official sources only",
+      "normalize/parse to structured text with headers",
+      "chunk per strategy/targets",
+      "embed with text-embedding-3-small",
+      "diff on checksum/token_count vs prior manifest",
+      "upsert changed chunks to Pinecone using dated namespaces",
+      "flip is_latest flags (new true; old false) atomically",
+      "write ingestion manifest with ingest_run_id + counts",
+      "run golden-set eval and record groundedness"
+    ],
+    "allowlist_only": true,
+    "user_uploads_enabled": false
+  },
+
+  "frontend": {
+    "style": "AnythingLLM-like shell",
+    "branding": { "logo": "local:/public/Taxentia_logo.png", "primary": "#073D7F", "accent": "#6491DE", "gold": "#F4B443", "bg": "#F1F1F1", "font": "Inter" },
+    "workspace_mode": "single",
+    "workspace_label": "IRS Corpus (Read-Only)",
+    "features": {
+      "chat": true,
+      "citations_panel": true,
+      "confidence_badge": true,
+      "query_history": true,
+      "pdf_export": { "enabled": true, "provider": "PDFMonkey|Placid" },
+      "client_folders": { "enabled": true, "tier": "firm" },
+      "agents": false,
+      "user_uploads": false,
+      "browser_clip": false
+    },
+    "response_template_order": ["Conclusion","Authority","Analysis","Scope & Assumptions","Confidence"],
+    "guardrails": {
+      "force_prompt_prefix": true,
+      "strip_user_instructions_that_conflict": true,
+      "max_answer_tokens": 1200
+    }
+  },
+
+  "backend": {
+    "api": {
+      "routes": [
+        { "path": "/taxentia/query", "method": "POST", "auth": "user", "notes": "Runs retrieval → rerank → LLM with enforced system prompt." },
+        { "path": "/taxentia/admin/upsert", "method": "POST", "auth": "service", "notes": "n8n ingestion upserts to Pinecone; updates manifests and is_latest." },
+        { "path": "/taxentia/admin/health", "method": "GET", "auth": "service" }
+      ]
+    },
+    "security": {
+      "readonly_corpus": true,
+      "cors_allowlist": ["https://preview--taxentia-nexus-ui.lovable.app","http://localhost:3000"],
+      "jwt_issuer": "taxentia",
+      "admin_service_key_env": "TAXENTIA_ADMIN_KEY"
+    },
+    "rate_limits": {
+      "free": { "rpm": 6, "rpd": 300 },
+      "pro": { "rpm": 20, "rpd": 5000 },
+      "firm": { "rpm": 60, "rpd": 20000 }
+    }
+  },
+
+  "pricing": {
+    "free": { "queries_per_day": 5, "pdf_export": false },
+    "pro": { "price_usd_month": 59, "pdf_export": true, "history": true },
+    "firm": { "price_usd_month": 279, "multi_user": true, "client_folders": true, "audit_exports": true }
+  },
+
+  "uncertainty_policy": {
+    "thresholds": { "green": 80, "amber_min": 60 },
+    "render": {
+      ">=80": "green",
+      "60-79": "amber",
+      "<60": "red"
+    },
+    "rules": [
+      "Green: proceed normally with cites.",
+      "Amber: highlight assumptions or interpretive risk.",
+      "Red: provide limited orientation, list missing authority, and recommend professional review."
+    ]
+  },
+
+  "refusal_policy": {
+    "hard_refuse_if": [
+      "outside U.S. federal tax",
+      "facts required are missing and cannot be reasonably assumed",
+      "no authoritative source retrieved",
+      "user asks for conclusions without adequate authority"
+    ],
+    "format": "Brief reason, what’s needed, narrower question suggestion."
+  },
+
+  "logging": {
+    "fields": ["timestamp","user_id","query","retrieved_ids","model","prompt_version","response","confidence","ingest_snapshot","latency_ms"],
+    "pii_redaction": true,
+    "retention_days": 90
+  },
+
+  "eval": {
+    "golden_sets": [
+      "§195 startup expenditures",
+      "§162 ordinary and necessary",
+      "§199A qualified business income",
+      "Home office deduction (Pub. 587/535)",
+      "S corp election timing (Form 2553)"
+    ],
+    "metrics": ["groundedness","citation_validity","reasoning_consistency","latency_ms"]
+  },
+
+  "secrets": {
+    "OPENAI_API_KEY": "env:OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY": "env:ANTHROPIC_API_KEY",
+    "PINECONE_API_KEY": "env:PINECONE_API_KEY",
+    "PINECONE_ENV": "env:PINECONE_ENV",
+    "PINECONE_INDEX": "taxentia-ai",
+    "SUPABASE_URL": "env:SUPABASE_URL",
+    "SUPABASE_ANON_KEY": "env:SUPABASE_ANON_KEY",
+    "DISABLE_TELEMETRY": "true",
+    "TAXENTIA_ADMIN_KEY": "env:TAXENTIA_ADMIN_KEY"
+  },
+
+  "example_user_query": "Client incurred $8,000 in market research and legal fees before opening in 2025. No revenue in 2025. Deductible now or only via amortization?",
+  "example_expected_shape": {
+    "conclusion": "…",
+    "authority": [
+      { "source_type": "irc", "citation": "IRC §195(a)", "url": "https://www.law.cornell.edu/uscode/text/26/195", "version_date": "latest" },
+      { "source_type": "irc", "citation": "IRC §195(c)", "url": "https://www.law.cornell.edu/uscode/text/26/195", "version_date": "latest" },
+      { "source_type": "pubs", "citation": "IRS Pub. 535 (Startup Costs)", "url": "https://www.irs.gov/publications/p535", "version_date": "latest" }
+    ],
+    "analysis": [
+      { "step": "Define startup expenditures", "rationale": "…", "authority_refs": [0,1] },
+      { "step": "Election timing & 180‑month amortization", "rationale": "…", "authority_refs": [0,1] },
+      { "step": "Publication guidance as secondary authority", "rationale": "…", "authority_refs": [2] }
+    ],
+    "scope_assumptions": "…",
+    "confidence": { "score": 88, "color": "green", "notes": "Primary authority squarely on point." }
+  }
+}
