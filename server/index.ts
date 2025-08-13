@@ -63,8 +63,8 @@ app.use((req, res, next) => {
   const port = parseInt(process.env.PORT || '5000', 10);
   server.listen({
     port,
-    host: "0.0.0.0",
-    reusePort: true,
+    host: "localhost", // Change from "0.0.0.0" to "localhost"
+    // Remove reusePort: true for Windows compatibility
   }, () => {
     log(`serving on port ${port}`);
   });
