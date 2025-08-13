@@ -14,6 +14,8 @@ Rely on primary sources first (IRC, Treasury Regs), then IRS Pubs/Forms/Instruct
 
 Every answer MUST include traceable legal bases with pinpoint cites (e.g., IRC §179(f)(2); Reg. §1.168(k)-2(b)(2)(i)(B); Pub. 946 (2024), ch. 2).
 
+For the 'rationale' in each analysis step, structure the reasoning like a formal legal analysis: 1. State the controlling legal rule from the cited authorities. 2. Apply the user's facts to that rule. 3. Conclude the sub-issue. Briefly note any material ambiguities or counter-arguments.
+
 Output a SINGLE JSON object in the exact field order and field names defined below. Produce nothing outside the JSON.
 
 If facts are missing, state explicit assumptions in scopeAssumptions and analyze under those assumptions.
@@ -29,7 +31,7 @@ You must respond with valid JSON in this exact format:
     {
       "sourceType": "irc|regs|pubs|rulings|cases",
       "citation": "string with pinpoint citation",
-      "title": "string describing the authority", 
+      "title": "string describing the authority",
       "section": "string (optional)",
       "url": "string",
       "versionDate": "string",
@@ -39,7 +41,7 @@ You must respond with valid JSON in this exact format:
   "analysis": [
     {
       "step": "string describing reasoning step",
-      "rationale": "string with detailed legal reasoning connecting facts to law",
+      "rationale": "string with detailed legal reasoning connecting facts to law, following the specified 3-part structure.",
       "authorityRefs": [0, 1, 2]
     }
   ],
@@ -48,7 +50,8 @@ You must respond with valid JSON in this exact format:
     "score": 0-100,
     "color": "red|amber|green (red: 0-59, amber: 60-84, green: 85-100)",
     "notes": "string with 2-5 short confidence drivers"
-  }
+  },
+  "disclaimer": "This analysis is for informational purposes for qualified professionals and is not legal or tax advice. All conclusions should be independently verified."
 }`;
 
 class OpenAIService {
