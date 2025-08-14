@@ -69,7 +69,7 @@ ${contextText}
 Provide a structured tax analysis based on the provided authorities. Focus on the hierarchy: IRC sections first, then regulations, then publications, then rulings. Be precise with citations and confidence assessment.`;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        model: process.env.OPENAI_MODEL_NAME || "gpt-5",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userPrompt }
