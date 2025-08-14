@@ -1,8 +1,9 @@
 import OpenAI from "openai";
 import type { Authority, TaxResponse } from "@shared/schema";
+import { pineconeService } from "./pinecone-service";
+import { ScoredPineconeRecord } from "@pinecone-database/pinecone";
 
-// The newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ 
+const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR || "default_key"
 });
 
@@ -55,11 +56,42 @@ You must respond with valid JSON in this exact format:
 }`;
 
 class OpenAIService {
-  async generateTaxResponse(query: string, authorities: Authority[]): Promise<TaxResponse> {
+  async generateTaxResponse(query: string): Promise<TaxResponse> {
     try {
-      const contextText = authorities.map(auth => 
-        `[${auth.sourceType.toUpperCase()}] ${auth.citation}: ${auth.content}`
-      ).join('\n\n');
+      // 1. Generate embedding for the query
+      const queryEmbedding = await this.generateEmbedding(query);
+
+      // 2. Query Pinecone to get relevant context
+      const searchResults = await pineconeService.query(queryEmbedding, 5);
+      console.log(`Retrieved ${searchResults.length} results from Pinecone`);
+
+      // 3. Construct context from retrieved chunks
+      let contextText = searchResults
+        .map((match: ScoredPineconeRecord) => match.metadata?.text)
+        .filter(text => text) // Remove any undefined/null text
+        .join('\n\n');
+      
+      // Truncate context if too long (leave room for system prompt + user query)
+      const MAX_CONTEXT_LENGTH = 8000; // Conservative limit
+      if (contextText.length > MAX_CONTEXT_LENGTH) {
+        contextText = contextText.substring(0, MAX_CONTEXT_LENGTH) + "...[truncated]";
+        console.log(`Context truncated to ${MAX_CONTEXT_LENGTH} characters`);
+      }
+      
+      console.log(`Context length: ${contextText.length} characters`);
+      
+      const authorities = searchResults.map((match: ScoredPineconeRecord) => {
+        return {
+          sourceType: match.metadata?.sourceType,
+          citation: match.metadata?.citation,
+          title: match.metadata?.title,
+          section: match.metadata?.section,
+          url: match.metadata?.url,
+          versionDate: match.metadata?.versionDate,
+          chunkId: match.id,
+          content: match.metadata?.text,
+        } as Authority;
+      });
 
       const userPrompt = `Query: ${query}
 
@@ -68,35 +100,63 @@ ${contextText}
 
 Provide a structured tax analysis based on the provided authorities. Focus on the hierarchy: IRC sections first, then regulations, then publications, then rulings. Be precise with citations and confidence assessment.`;
 
-      const response = await openai.chat.completions.create({
-        model: process.env.OPENAI_MODEL_NAME || "gpt-5",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userPrompt }
-        ],
-        response_format: { type: "json_object" },
-        max_tokens: 2000,
-        temperature: 0.1, // Low temperature for consistent, factual responses
-      });
+      // 4. Generate the final response
+      const modelName = process.env.OPENAI_MODEL_NAME || "gpt-4-turbo";
+      console.log("Calling OpenAI with model:", modelName);
+      console.log("User prompt length:", userPrompt.length);
+      
+      // Try with JSON mode first, fallback without it if not supported
+      let response;
+      try {
+        response = await openai.chat.completions.create({
+          model: modelName,
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT },
+            { role: "user", content: userPrompt }
+          ],
+          response_format: { type: "json_object" },
+          max_completion_tokens: 2000,
+          temperature: 0.1,
+        });
+      } catch (error: any) {
+        if (error?.error?.code === 'unsupported_parameter' && error?.error?.param === 'response_format') {
+          console.log("JSON mode not supported, falling back to regular mode");
+          response = await openai.chat.completions.create({
+            model: modelName,
+            messages: [
+              { role: "system", content: SYSTEM_PROMPT + "\n\nIMPORTANT: You must respond with valid JSON only, no other text." },
+              { role: "user", content: userPrompt }
+            ],
+            max_completion_tokens: 2000,
+            temperature: 0.1,
+          });
+        } else {
+          throw error;
+        }
+      }
 
-      const content = response.choices[0].message.content;
+      console.log("OpenAI response received. Choices length:", response.choices?.length);
+      console.log("First choice:", response.choices?.[0]);
+      
+      const content = response.choices?.[0]?.message?.content;
       if (!content) {
+        console.error("OpenAI response structure:", JSON.stringify(response, null, 2));
         throw new Error("No response content from OpenAI");
       }
+      
+      console.log("Content received, length:", content.length);
 
       const parsedResponse = JSON.parse(content);
       
-      // Ensure confidence color is set based on score if not provided
       if (parsedResponse.confidence && !parsedResponse.confidence.color) {
         const score = parsedResponse.confidence.score;
         parsedResponse.confidence.color = score >= 80 ? 'green' : score >= 60 ? 'amber' : 'red';
       }
 
-      // Map provided authorities to response authorities with additional metadata
       if (parsedResponse.authority) {
         parsedResponse.authority = parsedResponse.authority.map((authRef: any) => {
           const matchingAuth = authorities.find(auth => 
-            auth.citation.includes(authRef.citation) || authRef.citation.includes(auth.citation)
+            auth.citation?.includes(authRef.citation) || authRef.citation?.includes(auth.citation)
           );
           
           return {
@@ -112,22 +172,13 @@ Provide a structured tax analysis based on the provided authorities. Focus on th
     } catch (error) {
       console.error("OpenAI API error:", error);
       
-      // Return a fallback response in case of API failure
       return {
         conclusion: "Unable to process query due to service unavailability. Please try again or contact support for assistance with this tax question.",
-        authority: authorities.slice(0, 3).map(auth => ({
-          sourceType: auth.sourceType as any,
-          citation: auth.citation,
-          title: auth.title,
-          section: auth.section || undefined,
-          url: auth.url,
-          versionDate: auth.versionDate,
-          chunkId: auth.chunkId || undefined,
-        })),
+        authority: [],
         analysis: [{
           step: "Service Error",
           rationale: "Tax analysis service is temporarily unavailable. The query could not be processed with the available authorities.",
-          authorityRefs: [0]
+          authorityRefs: []
         }],
         scopeAssumptions: "Analysis limited due to service unavailability. Professional review recommended.",
         confidence: {
@@ -136,6 +187,19 @@ Provide a structured tax analysis based on the provided authorities. Focus on th
           notes: "Service error - unable to provide reliable analysis"
         }
       };
+    }
+  }
+
+  async generateEmbedding(text: string): Promise<number[]> {
+    try {
+      const response = await openai.embeddings.create({
+        model: "text-embedding-3-small",
+        input: text,
+      });
+      return response.data[0].embedding;
+    } catch (error) {
+      console.error("Error generating embedding:", error);
+      throw new Error("Failed to generate embedding.");
     }
   }
 }
