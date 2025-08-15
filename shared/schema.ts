@@ -57,14 +57,18 @@ export const taxResponseSchema = z.object({
     citation: z.string(),
     title: z.string(),
     section: z.string().optional(),
+    subsection: z.string().optional(),
     url: z.string(),
+    directUrl: z.string().optional(),
     versionDate: z.string(),
+    effectiveDate: z.string().optional(),
     chunkId: z.string().optional(),
   })),
   analysis: z.array(z.object({
     step: z.string(),
     rationale: z.string(),
     authorityRefs: z.array(z.number()),
+    proceduralNotes: z.string().optional(),
   })),
   scopeAssumptions: z.string(),
   confidence: z.object({
@@ -72,6 +76,18 @@ export const taxResponseSchema = z.object({
     color: z.enum(["red", "amber", "green"]),
     notes: z.string().optional(),
   }),
+  furtherReading: z.array(z.object({
+    citation: z.string(),
+    title: z.string(),
+    url: z.string(),
+    relevance: z.string(),
+  })).optional(),
+  proceduralGuidance: z.object({
+    forms: z.array(z.string()).optional(),
+    deadlines: z.array(z.string()).optional(),
+    elections: z.array(z.string()).optional(),
+  }).optional(),
+  disclaimer: z.string().optional(),
 });
 
 // Types

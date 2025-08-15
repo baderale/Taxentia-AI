@@ -1,4 +1,4 @@
-import { FileDown, Copy, Share2, Gavel, BookOpen, Search, AlertTriangle, TrendingUp } from "lucide-react";
+import { FileDown, Copy, Share2, Gavel, BookOpen, Search, AlertTriangle, TrendingUp, ExternalLink, Calendar, FileText, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -115,8 +115,8 @@ export default function ResponseDisplay({ response, onCitationsToggle }: Respons
                       parsedResponse.confidence.color === 'green' ? 'text-green-600' :
                       parsedResponse.confidence.color === 'amber' ? 'text-yellow-600' : 'text-red-600'
                     }`} data-testid="confidence-indicator">
-                      {parsedResponse.confidence.color === 'green' ? 'High' :
-                       parsedResponse.confidence.color === 'amber' ? 'Medium' : 'Low'} Confidence ({parsedResponse.confidence.score}%)
+                      {parsedResponse.confidence.score}% - {parsedResponse.confidence.color === 'green' ? 'High' :
+                       parsedResponse.confidence.color === 'amber' ? 'Medium' : 'Low'} Confidence
                     </span>
                   </div>
                   <span className="text-xs text-gray-400">•</span>
@@ -193,13 +193,29 @@ export default function ResponseDisplay({ response, onCitationsToggle }: Respons
                     <div className="text-xs text-gray-600 mt-1" data-testid={`authority-description-${index}`}>
                       {auth.title}
                     </div>
+                    {(auth.effectiveDate || auth.versionDate) && (
+                      <div className="flex items-center space-x-1 mt-1">
+                        <Calendar className="w-3 h-3 text-gray-400" />
+                        <span className="text-xs text-gray-500">
+                          {auth.effectiveDate || `Version: ${auth.versionDate}`}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center space-x-2 mt-2">
                       <Badge className={getAuthorityBadgeColor(auth.sourceType)} data-testid={`authority-type-${index}`}>
                         {getAuthorityType(auth.sourceType)}
                       </Badge>
-                      <a href={auth.url} className="text-taxentia-blue text-xs hover:underline" data-testid={`authority-link-${index}`}>
-                        View Source
-                      </a>
+                      {auth.directUrl ? (
+                        <a href={auth.directUrl} target="_blank" rel="noopener noreferrer" className="flex items-center space-x-1 text-taxentia-blue text-xs hover:underline" data-testid={`authority-direct-link-${index}`}>
+                          <span>Direct Link</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      ) : (
+                        <a href={auth.url} target="_blank" rel="noopener noreferrer" className="flex items-center space-x-1 text-taxentia-blue text-xs hover:underline" data-testid={`authority-link-${index}`}>
+                          <span>View Source</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -222,6 +238,15 @@ export default function ResponseDisplay({ response, onCitationsToggle }: Respons
                   <p className="text-sm text-gray-700 mb-2" data-testid={`analysis-step-rationale-${index}`}>
                     {step.rationale}
                   </p>
+                  {step.proceduralNotes && (
+                    <div className="bg-blue-50 border-l-2 border-blue-200 pl-3 py-2 mb-2">
+                      <div className="flex items-center space-x-1 mb-1">
+                        <FileText className="w-3 h-3 text-blue-500" />
+                        <span className="text-xs font-medium text-blue-700">Procedural Note</span>
+                      </div>
+                      <p className="text-xs text-blue-600">{step.proceduralNotes}</p>
+                    </div>
+                  )}
                   <div className="flex items-center space-x-2 text-xs text-gray-500">
                     <span>Authority refs:</span>
                     {step.authorityRefs.map((ref, refIndex) => (
@@ -251,7 +276,7 @@ export default function ResponseDisplay({ response, onCitationsToggle }: Respons
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-2">
                 <TrendingUp className="text-green-500 w-4 h-4" />
-                <h4 className="font-semibold text-gray-900">Confidence Assessment</h4>
+                <h4 className="font-semibold text-gray-900">{parsedResponse.confidence.score}% Confidence Assessment</h4>
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-24">
@@ -261,21 +286,103 @@ export default function ResponseDisplay({ response, onCitationsToggle }: Respons
                   parsedResponse.confidence.color === 'green' ? 'text-green-600' :
                   parsedResponse.confidence.color === 'amber' ? 'text-yellow-600' : 'text-red-600'
                 }`} data-testid="confidence-score">
-                  {parsedResponse.confidence.score}%
+                  {parsedResponse.confidence.color === 'green' ? 'High' :
+                   parsedResponse.confidence.color === 'amber' ? 'Medium' : 'Low'}
                 </span>
               </div>
             </div>
             <div className="text-sm text-gray-700" data-testid="confidence-notes">
-              <p className={`font-medium mb-2 ${
-                parsedResponse.confidence.color === 'green' ? 'text-green-600' :
-                parsedResponse.confidence.color === 'amber' ? 'text-yellow-600' : 'text-red-600'
-              }`}>
-                {parsedResponse.confidence.color === 'green' ? 'High' :
-                 parsedResponse.confidence.color === 'amber' ? 'Medium' : 'Low'} Confidence
-              </p>
               <p>{parsedResponse.confidence.notes || 'Primary authority is directly on point with minimal interpretive uncertainty.'}</p>
             </div>
           </div>
+
+          {/* Further Reading Section */}
+          {parsedResponse.furtherReading && parsedResponse.furtherReading.length > 0 && (
+            <div className="bg-white border border-gray-200 rounded-lg p-4" data-testid="further-reading-section">
+              <div className="flex items-center space-x-2 mb-3">
+                <BookOpen className="text-blue-500 w-4 h-4" />
+                <h4 className="font-semibold text-gray-900">Further Reading</h4>
+              </div>
+              <div className="space-y-2">
+                {parsedResponse.furtherReading.map((reading, index) => (
+                  <div key={index} className="flex items-start space-x-2 p-2 bg-blue-50 rounded" data-testid={`further-reading-${index}`}>
+                    <ExternalLink className="w-3 h-3 text-blue-500 mt-1 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <a href={reading.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-blue-700 hover:underline">
+                        {reading.citation}
+                      </a>
+                      <p className="text-xs text-gray-600 mt-1">{reading.title}</p>
+                      <p className="text-xs text-blue-600 mt-1">{reading.relevance}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Procedural Guidance Section */}
+          {parsedResponse.proceduralGuidance && (
+            <div className="bg-white border border-gray-200 rounded-lg p-4" data-testid="procedural-guidance-section">
+              <div className="flex items-center space-x-2 mb-3">
+                <Clock className="text-purple-500 w-4 h-4" />
+                <h4 className="font-semibold text-gray-900">Procedural Guidance</h4>
+              </div>
+              <div className="grid gap-4 md:grid-cols-3">
+                {parsedResponse.proceduralGuidance.forms && parsedResponse.proceduralGuidance.forms.length > 0 && (
+                  <div className="space-y-2">
+                    <h5 className="text-sm font-medium text-gray-900 flex items-center space-x-1">
+                      <FileText className="w-3 h-3" />
+                      <span>Required Forms</span>
+                    </h5>
+                    {parsedResponse.proceduralGuidance.forms.map((form, index) => (
+                      <Badge key={index} variant="outline" className="block text-xs">
+                        {form}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                {parsedResponse.proceduralGuidance.deadlines && parsedResponse.proceduralGuidance.deadlines.length > 0 && (
+                  <div className="space-y-2">
+                    <h5 className="text-sm font-medium text-gray-900 flex items-center space-x-1">
+                      <Calendar className="w-3 h-3" />
+                      <span>Key Deadlines</span>
+                    </h5>
+                    {parsedResponse.proceduralGuidance.deadlines.map((deadline, index) => (
+                      <Badge key={index} variant="outline" className="block text-xs bg-orange-50 border-orange-200">
+                        {deadline}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                {parsedResponse.proceduralGuidance.elections && parsedResponse.proceduralGuidance.elections.length > 0 && (
+                  <div className="space-y-2">
+                    <h5 className="text-sm font-medium text-gray-900 flex items-center space-x-1">
+                      <TrendingUp className="w-3 h-3" />
+                      <span>Available Elections</span>
+                    </h5>
+                    {parsedResponse.proceduralGuidance.elections.map((election, index) => (
+                      <Badge key={index} variant="outline" className="block text-xs bg-green-50 border-green-200">
+                        {election}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Disclaimer Section */}
+          {parsedResponse.disclaimer && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4" data-testid="disclaimer-section">
+              <div className="flex items-start space-x-2">
+                <AlertTriangle className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h5 className="text-sm font-medium text-yellow-800 mb-1">Professional Disclaimer</h5>
+                  <p className="text-xs text-yellow-700">{parsedResponse.disclaimer}</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
