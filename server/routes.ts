@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { z } from "zod";
 import { taxResponseSchema, insertTaxQuerySchema, type Authority } from "@shared/schema";
 import { openaiService } from "./services/openai-service";
-import { mockRetrievalService } from "./services/mock-retrieval";
+// import { mockRetrievalService } from "./services/mock-retrieval";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Submit tax query
@@ -17,11 +17,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Mock user ID for now - in real app would come from authentication
       const userId = "mock-user-id";
 
-      // Retrieve relevant authorities
-      const retrievedAuthorities = await mockRetrievalService.retrieveAuthorities(query);
-      
       // Generate structured response using OpenAI
-      const taxResponse = await openaiService.generateTaxResponse(query, retrievedAuthorities);
+      const taxResponse = await openaiService.generateTaxResponse(query);
       
       // Validate response structure
       const validatedResponse = taxResponseSchema.parse(taxResponse);
@@ -33,7 +30,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         response: validatedResponse,
         confidence: validatedResponse.confidence.score,
         confidenceColor: validatedResponse.confidence.color,
-        retrievedIds: retrievedAuthorities.map((auth: Authority) => auth.id),
       });
 
       res.json(savedQuery);
