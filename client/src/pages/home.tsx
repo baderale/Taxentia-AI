@@ -1,13 +1,17 @@
 import ChatInterface from "../components/chat-interface";
 import QueryHistory from "../components/query-history";
 import CitationsPanel from "../components/citations-panel";
+import Dashboard from "../components/dashboard";
+import SettingsPanel from "../components/settings-panel";
 import { useState } from "react";
-import { Scale, User, ChevronLeft } from "lucide-react";
+import { Scale, User, ChevronLeft, MessageSquare, BarChart3 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function Home() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [citationsPanelOpen, setCitationsPanelOpen] = useState(false);
   const [selectedQuery, setSelectedQuery] = useState<string | null>(null);
+  const [currentView, setCurrentView] = useState<'chat' | 'dashboard'>('chat');
 
   return (
     <div className="min-h-screen bg-taxentia-bg" data-testid="home-page">
@@ -27,6 +31,28 @@ export default function Home() {
           </div>
           
           <div className="flex items-center space-x-4">
+            {/* Navigation */}
+            <div className="flex items-center space-x-2 bg-gray-100 p-1 rounded-lg">
+              <Button
+                variant={currentView === 'chat' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setCurrentView('chat')}
+                className="px-3 py-1.5"
+              >
+                <MessageSquare className="w-4 h-4 mr-2" />
+                Chat
+              </Button>
+              <Button
+                variant={currentView === 'dashboard' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setCurrentView('dashboard')}
+                className="px-3 py-1.5"
+              >
+                <BarChart3 className="w-4 h-4 mr-2" />
+                Analytics
+              </Button>
+            </div>
+            
             {/* Subscription Tier Badge */}
             <div className="bg-taxentia-gold text-white px-3 py-1 rounded-full text-sm font-medium" data-testid="subscription-badge">
               Pro Plan
@@ -34,6 +60,7 @@ export default function Home() {
             
             {/* User Menu */}
             <div className="flex items-center space-x-2" data-testid="user-menu">
+              <SettingsPanel />
               <div className="w-8 h-8 bg-taxentia-blue rounded-full flex items-center justify-center">
                 <User className="text-white w-4 h-4" />
               </div>
@@ -43,10 +70,10 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="flex pt-16">
+      <div className="flex flex-col md:flex-row pt-16">
         {/* Sidebar - Query History */}
         <div 
-          className={`${sidebarCollapsed ? 'w-16' : 'w-80'} bg-white border-r border-gray-200 flex flex-col transition-all duration-300`}
+          className={`${sidebarCollapsed ? 'w-16 md:w-16' : 'w-full md:w-80'} bg-white border-r border-gray-200 flex flex-col transition-all duration-300 custom-scrollbar ${sidebarCollapsed ? '' : 'md:max-h-screen'}`}
           data-testid="sidebar"
         >
           <div className="p-4 border-b border-gray-200">
@@ -74,10 +101,14 @@ export default function Home() {
 
         {/* Main Content Area */}
         <div className="flex-1 bg-white">
-          <ChatInterface 
-            selectedQuery={selectedQuery}
-            onCitationsToggle={() => setCitationsPanelOpen(!citationsPanelOpen)}
-          />
+          {currentView === 'chat' ? (
+            <ChatInterface 
+              selectedQuery={selectedQuery}
+              onCitationsToggle={() => setCitationsPanelOpen(!citationsPanelOpen)}
+            />
+          ) : (
+            <Dashboard />
+          )}
         </div>
 
         {/* Citations Panel (Floating) */}

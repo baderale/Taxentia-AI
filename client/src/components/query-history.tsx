@@ -1,6 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { Search, Clock } from "lucide-react";
+import { Search, Clock, TrendingUp, FileText, Filter, SortDesc, Calendar } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useState } from "react";
 import type { TaxQuery } from "@shared/schema";
 
@@ -11,15 +16,46 @@ interface QueryHistoryProps {
 
 export default function QueryHistory({ onSelectQuery, selectedQuery }: QueryHistoryProps) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState<"recent" | "confidence" | "topic">("recent");
+  const [filterBy, setFilterBy] = useState<"all" | "high" | "medium" | "low">("all");
 
   // Fetch query history
   const { data: queries = [], isLoading } = useQuery<TaxQuery[]>({
     queryKey: ["/api/queries"],
   });
 
-  const filteredQueries = queries.filter(query =>
-    query.query.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Enhanced filtering and sorting
+  let filteredQueries = queries.filter(query => {
+    const matchesSearch = query.query.toLowerCase().includes(searchTerm.toLowerCase());
+    if (!matchesSearch) return false;
+    
+    if (filterBy === "all") return true;
+    
+    const confidence = (query.response as any)?.confidence;
+    if (!confidence) return filterBy === "low";
+    
+    const score = confidence.score;
+    switch (filterBy) {
+      case "high": return score >= 80;
+      case "medium": return score >= 50 && score < 80;
+      case "low": return score < 50;
+      default: return true;
+    }
+  });
+
+  // Sort queries
+  filteredQueries.sort((a, b) => {
+    switch (sortBy) {
+      case "confidence":
+        const aScore = (a.response as any)?.confidence?.score || 0;
+        const bScore = (b.response as any)?.confidence?.score || 0;
+        return bScore - aScore;
+      case "topic":
+        return a.query.localeCompare(b.query);
+      default: // recent
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    }
+  });
 
   const getConfidenceColor = (color: string) => {
     switch (color) {
@@ -57,9 +93,18 @@ export default function QueryHistory({ onSelectQuery, selectedQuery }: QueryHist
     return (
       <div className="space-y-3">
         {[1, 2, 3].map(i => (
-          <div key={i} className="bg-gray-50 p-3 rounded-lg animate-pulse">
-            <div className="h-4 bg-gray-200 rounded mb-2"></div>
-            <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+          <div key={i} className="bg-gray-50 p-4 rounded-xl border border-gray-100 animate-fadeIn">
+            <div className="flex items-start space-x-3">
+              <Skeleton className="w-8 h-8 rounded-lg" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-3 w-3/4" />
+                <div className="flex items-center space-x-2">
+                  <Skeleton className="h-5 w-12 rounded-full" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+              </div>
+            </div>
           </div>
         ))}
       </div>
@@ -68,17 +113,73 @@ export default function QueryHistory({ onSelectQuery, selectedQuery }: QueryHist
 
   return (
     <div className="flex flex-col flex-1" data-testid="query-history">
-      {/* Search History */}
-      <div className="relative mb-4">
-        <Input
-          type="text"
-          placeholder="Search history..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-9 text-sm focus:ring-2 focus:ring-taxentia-blue focus:border-transparent"
-          data-testid="input-search-history"
-        />
-        <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+      {/* Enhanced Search & Filters */}
+      <div className="space-y-3 mb-4">
+        {/* Search Input */}
+        <div className="relative">
+          <Input
+            type="text"
+            placeholder="Search queries..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9 pr-4 text-sm focus:ring-2 focus:ring-taxentia-blue focus:border-transparent"
+            data-testid="input-search-history"
+          />
+          <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+        </div>
+        
+        {/* Sort & Filter Controls */}
+        <div className="flex items-center space-x-2">
+          <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+            <SelectTrigger className="w-28">
+              <SortDesc className="w-3 h-3 mr-1" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="recent">Recent</SelectItem>
+              <SelectItem value="confidence">Confidence</SelectItem>
+              <SelectItem value="topic">Topic</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="px-2">
+                <Filter className="w-3 h-3" />
+                {filterBy !== "all" && (
+                  <Badge className="ml-1 h-4 w-4 p-0 text-xs">{
+                    filteredQueries.length
+                  }</Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 p-3">
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm">Filter by Confidence</h4>
+                <Select value={filterBy} onValueChange={(value: any) => setFilterBy(value)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Queries</SelectItem>
+                    <SelectItem value="high">High (80%+)</SelectItem>
+                    <SelectItem value="medium">Medium (50-79%)</SelectItem>
+                    <SelectItem value="low">Low (&lt;50%)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+        
+        {/* Results Summary */}
+        {(searchTerm || filterBy !== "all") && (
+          <div className="text-xs text-gray-500 flex items-center space-x-1">
+            <span>{filteredQueries.length} result{filteredQueries.length !== 1 ? 's' : ''}</span>
+            {searchTerm && <span>for "{searchTerm}"</span>}
+            {filterBy !== "all" && <Badge variant="secondary" className="h-4 text-xs">{filterBy}</Badge>}
+          </div>
+        )}
       </div>
 
       {/* Query List */}

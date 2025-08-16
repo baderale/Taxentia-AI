@@ -9,7 +9,9 @@
       "Bash(tsc:*)",
       "Bash(npx rimraf:*)",
       "Bash(git add:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "WebSearch",
+      "Bash(npx claude mcp add-json:*)"
     ],
     "defaultMode": "acceptEdits"
   }
