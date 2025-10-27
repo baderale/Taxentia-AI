@@ -13,7 +13,8 @@
     "ingest:cfr": "cross-env NODE_ENV=development tsx -r dotenv/config scripts/ingest-authorities.ts cfr",
     "ingest:irb": "cross-env NODE_ENV=development tsx -r dotenv/config scripts/ingest-authorities.ts irb",
     "ingest:all": "cross-env NODE_ENV=development tsx -r dotenv/config scripts/ingest-authorities.ts all",
-    "ingest:test": "cross-env NODE_ENV=development tsx -r dotenv/config scripts/ingest-authorities.ts test"
+    "ingest:test": "cross-env NODE_ENV=development tsx -r dotenv/config scripts/ingest-authorities.ts test",
+    "inspect:qdrant": "tsx scripts/inspect-qdrant.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
