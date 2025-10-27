@@ -5,7 +5,7 @@ import * as path from 'path';
 
 export interface IRBDocument {
   citation: string;
-  type: 'revenue_ruling' | 'revenue_procedure' | 'notice' | 'announcement';
+  type: 'revenue_ruling' | 'revenue_procedure' | 'notice' | 'announcement' | 'treasury_decision';
   number: string;
   title: string;
   text: string;
@@ -90,75 +90,111 @@ export class IRBFetcher {
 
       const $ = cheerio.load(response.data);
 
-      // Extract revenue rulings
-      $('a[id*="REV-RUL"], a[id*="Rev-Rul"]').each((_, element) => {
-        const id = $(element).attr('id');
-        const match = id?.match(/REV-RUL-(\d{4}-\d+)/i);
+      // Extract revenue rulings (using name attribute)
+      $('a[name*="REV-RUL"], a[name*="Rev-Rul"]').each((_, element) => {
+        const name = $(element).attr('name');
+        const match = name?.match(/REV-RUL-(\d{4}-\d+)/i);
 
         if (match) {
           const number = match[1];
-          const section = $(element).parent();
-          const title = section.find('h3, h4').first().text().trim() || 'Revenue Ruling';
-          const text = this.extractSectionText($, section);
+          const $anchor = $(element);
+          const h2 = $anchor.closest('h2');
+          const title = h2.text().replace(/Rev\.\s*Rul\.\s*\d{4}-\d+/i, '').trim() || 'Revenue Ruling';
+          const text = this.extractSectionText($, $anchor);
 
-          documents.push({
-            citation: `Rev. Rul. ${number}`,
-            type: 'revenue_ruling',
-            number,
-            title,
-            text,
-            bulletinNumber: bulletin.number,
-            bulletinDate: bulletin.year,
-            url: `${bulletin.htmlUrl}#${id}`,
-          });
+          if (text && text.length > 50) {
+            documents.push({
+              citation: `Rev. Rul. ${number}`,
+              type: 'revenue_ruling',
+              number,
+              title,
+              text,
+              bulletinNumber: bulletin.number,
+              bulletinDate: bulletin.year,
+              url: `${bulletin.htmlUrl}#${name}`,
+            });
+          }
         }
       });
 
-      // Extract revenue procedures
-      $('a[id*="REV-PROC"], a[id*="Rev-Proc"]').each((_, element) => {
-        const id = $(element).attr('id');
-        const match = id?.match(/REV-PROC-(\d{4}-\d+)/i);
+      // Extract revenue procedures (using name attribute)
+      $('a[name*="REV-PROC"], a[name*="Rev-Proc"]').each((_, element) => {
+        const name = $(element).attr('name');
+        const match = name?.match(/REV-PROC-(\d{4}-\d+)/i);
 
         if (match) {
           const number = match[1];
-          const section = $(element).parent();
-          const title = section.find('h3, h4').first().text().trim() || 'Revenue Procedure';
-          const text = this.extractSectionText($, section);
+          const $anchor = $(element);
+          const h2 = $anchor.closest('h2');
+          const title = h2.text().replace(/Rev\.\s*Proc\.\s*\d{4}-\d+/i, '').trim() || 'Revenue Procedure';
+          const text = this.extractSectionText($, $anchor);
 
-          documents.push({
-            citation: `Rev. Proc. ${number}`,
-            type: 'revenue_procedure',
-            number,
-            title,
-            text,
-            bulletinNumber: bulletin.number,
-            bulletinDate: bulletin.year,
-            url: `${bulletin.htmlUrl}#${id}`,
-          });
+          if (text && text.length > 50) {
+            documents.push({
+              citation: `Rev. Proc. ${number}`,
+              type: 'revenue_procedure',
+              number,
+              title,
+              text,
+              bulletinNumber: bulletin.number,
+              bulletinDate: bulletin.year,
+              url: `${bulletin.htmlUrl}#${name}`,
+            });
+          }
         }
       });
 
-      // Extract notices
-      $('a[id*="NOTICE"]').each((_, element) => {
-        const id = $(element).attr('id');
-        const match = id?.match(/NOTICE-(\d{4}-\d+)/i);
+      // Extract notices (using name attribute, both NOTICE and NOT formats)
+      $('a[name*="NOTICE"], a[name*="NOT-"]').each((_, element) => {
+        const name = $(element).attr('name');
+        const match = name?.match(/(?:NOTICE|NOT)-(\d{4}-\d+)/i);
 
         if (match) {
           const number = match[1];
-          const section = $(element).parent();
-          const title = section.find('h3, h4').first().text().trim() || 'Notice';
-          const text = this.extractSectionText($, section);
+          const $anchor = $(element);
+          const h2 = $anchor.closest('h2');
+          const title = h2.text().replace(/Notice\s*\d{4}-\d+/i, '').trim() || 'Notice';
+          const text = this.extractSectionText($, $anchor);
 
-          documents.push({
-            citation: `Notice ${number}`,
-            type: 'notice',
-            number,
-            title,
-            text,
-            bulletinNumber: bulletin.number,
-            bulletinDate: bulletin.year,
-            url: `${bulletin.htmlUrl}#${id}`,
-          });
+          if (text && text.length > 50) {
+            documents.push({
+              citation: `Notice ${number}`,
+              type: 'notice',
+              number,
+              title,
+              text,
+              bulletinNumber: bulletin.number,
+              bulletinDate: bulletin.year,
+              url: `${bulletin.htmlUrl}#${name}`,
+            });
+          }
+        }
+      });
+
+      // Extract Treasury Decisions (using name attribute)
+      $('a[name*="TD-"]').each((_, element) => {
+        const name = $(element).attr('name');
+        const match = name?.match(/TD-(\d+)/i);
+
+        if (match) {
+          const number = match[1];
+          const $anchor = $(element);
+          const h2 = $anchor.closest('h2');
+          const title = h2.text().replace(/T\.D\.\s*\d+/i, '').trim() || 'Treasury Decision';
+          const text = this.extractSectionText($, $anchor);
+
+          if (text && text.length > 50) {
+            documents.push({
+              citation: `T.D. ${number}`,
+              type: 'treasury_decision',
+              number,
+              title,
+              text,
+              bulletinNumber: bulletin.number,
+              bulletinDate: bulletin.year,
+              url: `${bulletin.htmlUrl}#${name}`,
+            });
+          }
         }
       });
 
@@ -175,11 +211,48 @@ export class IRBFetcher {
 
   /**
    * Extract text content from a section
+   * IRB HTML structure: <h2> with anchor is followed by </div></div></div> then <div class="sect1"> with content
    */
-  private extractSectionText($: cheerio.CheerioAPI, section: cheerio.Cheerio): string {
-    // Find the next section or end of content
-    const nextSection = section.nextUntil('h2, h3').addBack();
-    const text = nextSection.text().trim();
+  private extractSectionText($: cheerio.CheerioAPI, anchor: cheerio.Cheerio): string {
+    // The anchor is inside an <h2> which is the heading
+    // After the heading's parent divs close, there's a <div class="sect1"> with the content
+
+    const h2 = anchor.closest('h2');
+    if (!h2.length) return '';
+
+    // Find the next sect1 div after this heading
+    // We need to traverse up and find the next sect1 sibling
+    let current = h2.parent();
+    let nextSect1 = null;
+
+    // Navigate up through the div hierarchy
+    for (let i = 0; i < 5; i++) {
+      const nextSiblings = current.nextAll('div.sect1');
+      if (nextSiblings.length > 0) {
+        nextSect1 = nextSiblings.first();
+        break;
+      }
+      current = current.parent();
+      if (!current.length || current.prop('tagName') === 'BODY') break;
+    }
+
+    if (!nextSect1 || !nextSect1.length) {
+      // Fallback: try to find content in any nearby divs
+      const parent = h2.parent();
+      const nextDivs = parent.nextAll('div').slice(0, 3);
+      return nextDivs.text().replace(/\s+/g, ' ').trim();
+    }
+
+    // Extract text from the sect1 div, stopping at the next document heading
+    let text = '';
+    nextSect1.find('p, div.sect2, div.sect3').each((_, el) => {
+      const $el = $(el);
+      // Stop if we hit another document (would have h2 with anchor)
+      if ($el.find('a[name*="TD-"], a[name*="NOT-"], a[name*="REV-"]').length > 0) {
+        return false;
+      }
+      text += $el.text() + '\n';
+    });
 
     // Clean up extra whitespace
     return text.replace(/\s+/g, ' ').trim();

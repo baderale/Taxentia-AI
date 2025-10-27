@@ -42,25 +42,48 @@ export class TextChunker {
     for (let i = 0; i < paragraphs.length; i++) {
       const paragraph = paragraphs[i].trim();
 
-      // If adding this paragraph would exceed max size, save current chunk
-      if (currentChunk.length + paragraph.length > this.maxChunkSize && currentChunk.length > 0) {
-        chunks.push({
-          text: currentChunk.trim(),
-          metadata: {
-            ...metadata,
-            chunk_index: chunkIndex,
-            total_chunks: 0, // Will be updated later
-          },
-          id: this.generateChunkId(metadata, chunkIndex),
-        });
+      // If paragraph itself is too large, split it by sentences
+      if (paragraph.length > this.maxChunkSize) {
+        const sentences = this.splitIntoSentences(paragraph);
 
-        chunkIndex++;
+        for (const sentence of sentences) {
+          if (currentChunk.length + sentence.length > this.maxChunkSize && currentChunk.length > 0) {
+            chunks.push({
+              text: currentChunk.trim(),
+              metadata: {
+                ...metadata,
+                chunk_index: chunkIndex,
+                total_chunks: 0,
+              },
+              id: this.generateChunkId(metadata, chunkIndex),
+            });
 
-        // Start new chunk with overlap from previous chunk
-        const overlap = this.getLastWords(currentChunk, this.overlapSize);
-        currentChunk = overlap + ' ' + paragraph;
+            chunkIndex++;
+            const overlap = this.getLastWords(currentChunk, this.overlapSize);
+            currentChunk = overlap + ' ' + sentence;
+          } else {
+            currentChunk += (currentChunk ? ' ' : '') + sentence;
+          }
+        }
       } else {
-        currentChunk += (currentChunk ? '\n\n' : '') + paragraph;
+        // Normal paragraph handling
+        if (currentChunk.length + paragraph.length > this.maxChunkSize && currentChunk.length > 0) {
+          chunks.push({
+            text: currentChunk.trim(),
+            metadata: {
+              ...metadata,
+              chunk_index: chunkIndex,
+              total_chunks: 0,
+            },
+            id: this.generateChunkId(metadata, chunkIndex),
+          });
+
+          chunkIndex++;
+          const overlap = this.getLastWords(currentChunk, this.overlapSize);
+          currentChunk = overlap + ' ' + paragraph;
+        } else {
+          currentChunk += (currentChunk ? '\n\n' : '') + paragraph;
+        }
       }
     }
 
@@ -83,6 +106,17 @@ export class TextChunker {
     });
 
     return chunks;
+  }
+
+  /**
+   * Split text into sentences for finer-grained chunking
+   */
+  private splitIntoSentences(text: string): string[] {
+    // Split on sentence boundaries (. ! ?) followed by space and capital letter
+    // Also handle common abbreviations
+    const sentences = text.match(/[^.!?]+[.!?]+(?=\s+[A-Z]|$)/g) || [text];
+
+    return sentences.map((s) => s.trim()).filter((s) => s.length > 0);
   }
 
   /**

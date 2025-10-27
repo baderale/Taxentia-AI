@@ -8,7 +8,7 @@ export interface EmbeddedChunk extends Chunk {
 export class EmbeddingsService {
   private openai: OpenAI;
   private model: string = 'text-embedding-3-small';
-  private batchSize: number = 100; // OpenAI allows up to 2048 inputs per request
+  private batchSize: number = 40; // Reduced to stay under 300k token limit (each USC chunk ~2k chars = ~500 tokens, so 40 chunks ≈ 20k tokens << 300k)
 
   constructor(apiKey?: string) {
     this.openai = new OpenAI({
@@ -83,13 +83,37 @@ export class EmbeddingsService {
   }
 
   /**
-   * Batch chunks into groups
+   * Batch chunks into groups with token limit awareness
+   * Max 8192 tokens per batch for text-embedding-3-small
    */
-  private batchChunks<T>(items: T[], batchSize: number): T[][] {
-    const batches: T[][] = [];
+  private batchChunks(items: Chunk[], batchSize: number): Chunk[][] {
+    const batches: Chunk[][] = [];
+    const MAX_TOKENS_PER_BATCH = 6000; // Conservative limit (8192 actual limit)
 
-    for (let i = 0; i < items.length; i += batchSize) {
-      batches.push(items.slice(i, i + batchSize));
+    let currentBatch: Chunk[] = [];
+    let currentTokens = 0;
+
+    for (const item of items) {
+      // Estimate tokens (rough: 1 token ≈ 4 chars)
+      const estimatedTokens = Math.ceil(item.text.length / 4);
+
+      // If adding this chunk exceeds limit OR batch size, start new batch
+      if (
+        (currentTokens + estimatedTokens > MAX_TOKENS_PER_BATCH || currentBatch.length >= batchSize) &&
+        currentBatch.length > 0
+      ) {
+        batches.push(currentBatch);
+        currentBatch = [];
+        currentTokens = 0;
+      }
+
+      currentBatch.push(item);
+      currentTokens += estimatedTokens;
+    }
+
+    // Add final batch
+    if (currentBatch.length > 0) {
+      batches.push(currentBatch);
     }
 
     return batches;
