@@ -35,7 +35,8 @@
       "Bash(timeout:*)",
       "Bash(npm install:*)",
       "Bash(taskkill:*)",
-      "Bash(docker exec:*)"
+      "Bash(docker exec:*)",
+      "Bash(git commit:*)"
     ],
     "defaultMode": "acceptEdits"
   }
