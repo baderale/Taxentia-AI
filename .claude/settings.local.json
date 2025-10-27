@@ -38,7 +38,18 @@
       "Bash(docker exec:*)",
       "Bash(git commit:*)",
       "Bash(python -m json.tool:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(createdb:*)",
+      "Bash(docker-compose --version:*)",
+      "Bash(npx lsof -i :5000)",
+      "Bash(npm test)",
+      "Bash(netstat:*)",
+      "Bash(tasklist:*)",
+      "Bash(echo:*)",
+      "Bash(cat:*)",
+      "Bash(npm exec:*)",
+      "Bash(wmic process:*)",
+      "mcp__MCP_DOCKER__sequentialthinking"
     ],
     "defaultMode": "acceptEdits"
   }

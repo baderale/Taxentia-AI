@@ -3,12 +3,9 @@ import { Strategy as LocalStrategy } from 'passport-local';
 import bcrypt from 'bcryptjs';
 import session from 'express-session';
 import pgSession from 'connect-pg-simple';
-import { db } from './db';
+import { db, pool } from './db';
 import { users } from '@shared/schema';
 import { eq } from 'drizzle-orm';
-
-// Get database pool for session store
-const sessionPool = require('pg').Pool;
 
 /**
  * Configure Passport.js local strategy
@@ -70,11 +67,11 @@ passport.deserializeUser(async (id: string, done) => {
  * Configure session middleware
  * Uses PostgreSQL for persistent session storage
  */
+const PgSession = pgSession(session);
+
 export const sessionMiddleware = session({
-  store: new (pgSession(session))({
-    pool: process.env.DATABASE_URL
-      ? new sessionPool({ connectionString: process.env.DATABASE_URL })
-      : undefined,
+  store: new PgSession({
+    pool: pool,
     tableName: 'user_sessions',
   }),
   secret: process.env.SESSION_SECRET || 'dev-secret-change-in-production',

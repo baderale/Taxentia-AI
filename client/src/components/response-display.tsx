@@ -247,14 +247,16 @@ export default function ResponseDisplay({ response, onCitationsToggle }: Respons
                       <p className="text-xs text-blue-600">{step.proceduralNotes}</p>
                     </div>
                   )}
-                  <div className="flex items-center space-x-2 text-xs text-gray-500">
-                    <span>Authority refs:</span>
-                    {step.authorityRefs.map((ref, refIndex) => (
-                      <Badge key={refIndex} variant="secondary" className="text-xs" data-testid={`authority-ref-${index}-${refIndex}`}>
-                        {parsedResponse.authority[ref]?.citation || `Ref ${ref}`}
-                      </Badge>
-                    ))}
-                  </div>
+                  {step.authorityRefs && step.authorityRefs.length > 0 && (
+                    <div className="flex items-center space-x-2 text-xs text-gray-500">
+                      <span>Authority refs:</span>
+                      {step.authorityRefs.map((ref, refIndex) => (
+                        <Badge key={refIndex} variant="secondary" className="text-xs" data-testid={`authority-ref-${index}-${refIndex}`}>
+                          {parsedResponse.authority[ref]?.citation || `Ref ${ref}`}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

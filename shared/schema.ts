@@ -107,7 +107,7 @@ export const taxResponseSchema = z.object({
   confidence: z.object({
     score: z.number().min(0).max(100),
     color: z.enum(["red", "amber", "green"]),
-    notes: z.string().optional(),
+    notes: z.union([z.string(), z.array(z.string())]).optional(),
   }),
   furtherReading: z.array(z.object({
     citation: z.string(),

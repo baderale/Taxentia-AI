@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { z } from "zod";
 import { taxResponseSchema, insertTaxQuerySchema, type Authority, users } from "@shared/schema";
 import { openaiService } from "./services/openai-service";
+import { mockOpenAIService } from "./services/mock-openai-service";
 import { qdrantService } from "./services/qdrant-service";
 import passport from "passport";
 import { hashPassword, requireAuth } from "./auth";
@@ -136,8 +137,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get authenticated user ID
       const userId = req.user.id;
 
-      // Generate structured response using OpenAI
-      const taxResponse = await openaiService.generateTaxResponse(query);
+      // Generate structured response using OpenAI or mock if API key not configured
+      let taxResponse;
+      if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== "default_key") {
+        try {
+          taxResponse = await openaiService.generateTaxResponse(query);
+        } catch (error) {
+          console.warn("OpenAI service failed, falling back to mock:", error);
+          taxResponse = await mockOpenAIService.generateTaxResponse(query);
+        }
+      } else {
+        console.log("Using mock OpenAI service (no API key configured)");
+        taxResponse = await mockOpenAIService.generateTaxResponse(query);
+      }
 
       // Validate response structure
       const validatedResponse = taxResponseSchema.parse(taxResponse);
