@@ -85,21 +85,34 @@ export class EmbeddingsService {
   /**
    * Batch chunks into groups with token limit awareness
    * Max 8192 tokens per batch for text-embedding-3-small
+   * Using very conservative estimate: 1 token ≈ 3 chars (safer for large docs)
    */
   private batchChunks(items: Chunk[], batchSize: number): Chunk[][] {
     const batches: Chunk[][] = [];
-    const MAX_TOKENS_PER_BATCH = 6000; // Conservative limit (8192 actual limit)
+    const MAX_TOKENS_PER_BATCH = 3500; // Ultra-conservative (8192 actual limit - 57% buffer for safety)
+    const MAX_TOKENS_PER_CHUNK = 3000; // Single chunk limit to avoid edge cases
 
     let currentBatch: Chunk[] = [];
     let currentTokens = 0;
 
     for (const item of items) {
-      // Estimate tokens (rough: 1 token ≈ 4 chars)
-      const estimatedTokens = Math.ceil(item.text.length / 4);
+      // Conservative token estimate: 1 token ≈ 3 chars (safer than 4)
+      const estimatedTokens = Math.ceil(item.text.length / 3);
+
+      // If single chunk exceeds limit, truncate it
+      if (estimatedTokens > MAX_TOKENS_PER_CHUNK) {
+        console.warn(
+          `⚠️  Chunk exceeds ${MAX_TOKENS_PER_CHUNK} token limit (${estimatedTokens} tokens). Truncating from ${item.text.length} chars to ${MAX_TOKENS_PER_CHUNK * 3} chars.`
+        );
+        item.text = item.text.substring(0, MAX_TOKENS_PER_CHUNK * 3);
+      }
+
+      // Recalculate after potential truncation
+      const finalTokens = Math.ceil(item.text.length / 3);
 
       // If adding this chunk exceeds limit OR batch size, start new batch
       if (
-        (currentTokens + estimatedTokens > MAX_TOKENS_PER_BATCH || currentBatch.length >= batchSize) &&
+        (currentTokens + finalTokens > MAX_TOKENS_PER_BATCH || currentBatch.length >= batchSize) &&
         currentBatch.length > 0
       ) {
         batches.push(currentBatch);
@@ -108,7 +121,7 @@ export class EmbeddingsService {
       }
 
       currentBatch.push(item);
-      currentTokens += estimatedTokens;
+      currentTokens += finalTokens;
     }
 
     // Add final batch

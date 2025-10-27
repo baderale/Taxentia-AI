@@ -30,6 +30,7 @@ class AuthorityIngestionPipeline {
   constructor() {
     this.chunker = new TextChunker(2000, 200);
     this.embeddings = new EmbeddingsService();
+    // Note: EmbeddingsService handles batching internally with token limits
   }
 
   /**

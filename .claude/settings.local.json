@@ -36,7 +36,9 @@
       "Bash(npm install:*)",
       "Bash(taskkill:*)",
       "Bash(docker exec:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(python -m json.tool:*)",
+      "Bash(chmod:*)"
     ],
     "defaultMode": "acceptEdits"
   }

@@ -2,28 +2,146 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
-import { taxResponseSchema, insertTaxQuerySchema, type Authority } from "@shared/schema";
+import { taxResponseSchema, insertTaxQuerySchema, type Authority, users } from "@shared/schema";
 import { openaiService } from "./services/openai-service";
 import { qdrantService } from "./services/qdrant-service";
+import passport from "passport";
+import { hashPassword, requireAuth } from "./auth";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 // import { mockRetrievalService } from "./services/mock-retrieval";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // ============================================
+  // AUTHENTICATION ROUTES
+  // ============================================
+
+  /**
+   * Register a new user
+   * POST /auth/register
+   */
+  app.post("/auth/register", async (req, res) => {
+    try {
+      const { email, password, username, fullName } = z.object({
+        email: z.string().email("Invalid email address"),
+        password: z.string().min(8, "Password must be at least 8 characters"),
+        username: z.string().min(3, "Username must be at least 3 characters").max(50),
+        fullName: z.string().optional(),
+      }).parse(req.body);
+
+      // Check if user already exists
+      const existingEmail = await db.select().from(users).where(eq(users.email, email));
+      if (existingEmail.length > 0) {
+        return res.status(400).json({ message: "Email already in use" });
+      }
+
+      const existingUsername = await db.select().from(users).where(eq(users.username, username));
+      if (existingUsername.length > 0) {
+        return res.status(400).json({ message: "Username already taken" });
+      }
+
+      // Hash password
+      const passwordHash = await hashPassword(password);
+
+      // Create user
+      const newUser = await db
+        .insert(users)
+        .values({
+          email,
+          username,
+          passwordHash,
+          fullName: fullName || null,
+        })
+        .returning();
+
+      // Automatically log in after signup
+      req.login(newUser[0], (err) => {
+        if (err) return res.status(500).json({ message: err.message });
+        res.status(201).json({
+          success: true,
+          user: {
+            id: newUser[0].id,
+            email: newUser[0].email,
+            username: newUser[0].username,
+            fullName: newUser[0].fullName,
+          },
+        });
+      });
+    } catch (error) {
+      console.error("Registration error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      res.status(500).json({
+        message: error instanceof Error ? error.message : "Registration failed",
+      });
+    }
+  });
+
+  /**
+   * Login user
+   * POST /auth/login
+   */
+  app.post("/auth/login", passport.authenticate("local", {
+    session: true,
+  }), (req: any, res) => {
+    res.json({
+      success: true,
+      user: {
+        id: req.user.id,
+        email: req.user.email,
+        username: req.user.username,
+        fullName: req.user.fullName,
+      },
+    });
+  });
+
+  /**
+   * Logout user
+   * POST /auth/logout
+   */
+  app.post("/auth/logout", (req, res) => {
+    req.logout((err: any) => {
+      if (err) return res.status(500).json({ message: err.message });
+      res.json({ success: true, message: "Logged out successfully" });
+    });
+  });
+
+  /**
+   * Get current user info
+   * GET /auth/me
+   */
+  app.get("/auth/me", requireAuth, (req: any, res) => {
+    res.json({
+      id: req.user.id,
+      email: req.user.email,
+      username: req.user.username,
+      fullName: req.user.fullName,
+      tier: req.user.tier,
+      createdAt: req.user.createdAt,
+    });
+  });
+
+  // ============================================
+  // TAX QUERY ROUTES
+  // ============================================
+
   // Submit tax query
-  app.post("/api/taxentia/query", async (req, res) => {
+  app.post("/api/taxentia/query", requireAuth, async (req: any, res) => {
     try {
       const { query } = z.object({
         query: z.string().min(1).max(2000)
       }).parse(req.body);
 
-      // Mock user ID for now - in real app would come from authentication
-      const userId = "mock-user-id";
+      // Get authenticated user ID
+      const userId = req.user.id;
 
       // Generate structured response using OpenAI
       const taxResponse = await openaiService.generateTaxResponse(query);
-      
+
       // Validate response structure
       const validatedResponse = taxResponseSchema.parse(taxResponse);
-      
+
       // Save query and response
       const savedQuery = await storage.createTaxQuery({
         userId,
@@ -36,17 +154,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(savedQuery);
     } catch (error) {
       console.error("Tax query error:", error);
-      res.status(500).json({ 
-        message: error instanceof Error ? error.message : "Internal server error" 
+      res.status(500).json({
+        message: error instanceof Error ? error.message : "Internal server error"
       });
     }
   });
 
   // Get user's query history
-  app.get("/api/queries", async (req, res) => {
+  app.get("/api/queries", requireAuth, async (req: any, res) => {
     try {
-      // Mock user ID for now
-      const userId = "mock-user-id";
+      // Get authenticated user ID
+      const userId = req.user.id;
       const queries = await storage.getTaxQueriesByUser(userId);
       res.json(queries);
     } catch (error) {

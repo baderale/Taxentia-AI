@@ -5,10 +5,23 @@ import { z } from "zod";
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: text("email").notNull().unique(),
   username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+  passwordHash: text("password_hash").notNull(),
+  fullName: text("full_name"),
+  tier: text("tier").notNull().default("free"), // free, pro, enterprise
   subscription: text("subscription").notNull().default("free"), // free, pro, firm
+  subscriptionActive: boolean("subscription_active").default(true),
+  apiQuotaMonthly: integer("api_quota_monthly").default(100),
+  apiQuotaUsed: integer("api_quota_used").default(0),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const userSessions = pgTable("user_sessions", {
+  sid: varchar("sid").primaryKey(),
+  sess: jsonb("sess").notNull(),
+  expire: timestamp("expire").notNull(),
 });
 
 export const taxQueries = pgTable("tax_queries", {
@@ -48,6 +61,11 @@ export const ircSyncStatus = pgTable("irc_sync_status", {
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
+}).extend({
+  email: z.string().email("Invalid email address"),
+  passwordHash: z.string().min(8, "Password must be at least 8 characters"),
+  username: z.string().min(3, "Username must be at least 3 characters"),
 });
 
 export const insertTaxQuerySchema = createInsertSchema(taxQueries).omit({

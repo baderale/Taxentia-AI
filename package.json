@@ -14,7 +14,9 @@
     "ingest:irb": "cross-env NODE_ENV=development tsx -r dotenv/config scripts/ingest-authorities.ts irb",
     "ingest:all": "cross-env NODE_ENV=development tsx -r dotenv/config scripts/ingest-authorities.ts all",
     "ingest:test": "cross-env NODE_ENV=development tsx -r dotenv/config scripts/ingest-authorities.ts test",
-    "inspect:qdrant": "tsx scripts/inspect-qdrant.ts"
+    "inspect:qdrant": "tsx scripts/inspect-qdrant.ts",
+    "schedule:updates": "cross-env NODE_ENV=production tsx -r dotenv/config scripts/schedule-qdrant-updates.ts",
+    "schedule:updates:now": "cross-env NODE_ENV=production RUN_NOW=true tsx -r dotenv/config scripts/schedule-qdrant-updates.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -49,9 +51,11 @@
     "@radix-ui/react-toggle-group": "^1.1.3",
     "@radix-ui/react-tooltip": "^1.2.0",
     "@tanstack/react-query": "^5.60.5",
+    "@types/bcryptjs": "^2.4.6",
     "@types/cheerio": "^0.22.35",
     "adm-zip": "^0.5.16",
     "axios": "^1.11.0",
+    "bcryptjs": "^3.0.2",
     "cheerio": "^1.1.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
