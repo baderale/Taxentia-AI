@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "n8n-mcp": {
+      "command": "node",
+      "args": [],
+      "url": "http://localhost:3000",
+      "authToken": "yCcjpyTH1EP3z3qBz6iEGeZVxuOfYlFHendFEeGiJB4=",
+      "type": "http"
+    }
+  }
+}

@@ -34,6 +34,16 @@ export const authorities = pgTable("authorities", {
   chunkId: text("chunk_id"),
 });
 
+export const ircSyncStatus = pgTable("irc_sync_status", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  lastSyncDate: timestamp("last_sync_date"),
+  totalSections: integer("total_sections").default(0),
+  indexedSections: integer("indexed_sections").default(0),
+  status: text("status").notNull().default("never_synced"), // never_synced, syncing, completed, failed
+  errorMessage: text("error_message"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -47,6 +57,11 @@ export const insertTaxQuerySchema = createInsertSchema(taxQueries).omit({
 
 export const insertAuthoritySchema = createInsertSchema(authorities).omit({
   id: true,
+});
+
+export const insertIrcSyncStatusSchema = createInsertSchema(ircSyncStatus).omit({
+  id: true,
+  updatedAt: true,
 });
 
 // Response structure schema
@@ -97,4 +112,6 @@ export type TaxQuery = typeof taxQueries.$inferSelect;
 export type InsertTaxQuery = z.infer<typeof insertTaxQuerySchema>;
 export type Authority = typeof authorities.$inferSelect;
 export type InsertAuthority = z.infer<typeof insertAuthoritySchema>;
+export type IrcSyncStatus = typeof ircSyncStatus.$inferSelect;
+export type InsertIrcSyncStatus = z.infer<typeof insertIrcSyncStatusSchema>;
 export type TaxResponse = z.infer<typeof taxResponseSchema>;

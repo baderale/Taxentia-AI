@@ -1,7 +1,6 @@
 import OpenAI from "openai";
 import type { Authority, TaxResponse } from "@shared/schema";
-import { pineconeService } from "./pinecone-service";
-import { ScoredPineconeRecord } from "@pinecone-database/pinecone";
+import { qdrantService, type QdrantSearchResult } from "./qdrant-service";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR || "default_key"
@@ -88,13 +87,13 @@ class OpenAIService {
       // 1. Generate embedding for the query
       const queryEmbedding = await this.generateEmbedding(query);
 
-      // 2. Query Pinecone to get relevant context
-      const searchResults = await pineconeService.query(queryEmbedding, 5);
-      console.log(`Retrieved ${searchResults.length} results from Pinecone`);
+      // 2. Query Qdrant to get relevant context
+      const searchResults = await qdrantService.query(queryEmbedding, 5);
+      console.log(`Retrieved ${searchResults.length} results from Qdrant`);
 
       // 3. Construct context from retrieved chunks
       let contextText = searchResults
-        .map((match: ScoredPineconeRecord) => match.metadata?.text)
+        .map((match: QdrantSearchResult) => match.payload?.text)
         .filter(text => text) // Remove any undefined/null text
         .join('\n\n');
       
@@ -117,18 +116,18 @@ class OpenAIService {
       
       console.log(`Context length: ${contextText.length} characters`);
       
-      const authorities = searchResults.map((match: ScoredPineconeRecord) => {
+      const authorities = searchResults.map((match: QdrantSearchResult) => {
         return {
-          sourceType: match.metadata?.sourceType,
-          citation: match.metadata?.citation,
-          title: match.metadata?.title,
-          section: match.metadata?.section,
-          url: match.metadata?.url,
-          directUrl: this.generateDirectUrl(match.metadata?.sourceType, match.metadata?.citation, match.metadata?.url),
-          versionDate: match.metadata?.versionDate,
-          effectiveDate: this.getEffectiveDate(match.metadata?.sourceType, match.metadata?.versionDate),
+          sourceType: match.payload?.sourceType,
+          citation: match.payload?.citation,
+          title: match.payload?.title,
+          section: match.payload?.section,
+          url: match.payload?.url,
+          directUrl: this.generateDirectUrl(match.payload?.sourceType, match.payload?.citation, match.payload?.url),
+          versionDate: match.payload?.versionDate,
+          effectiveDate: this.getEffectiveDate(match.payload?.sourceType, match.payload?.versionDate),
           chunkId: match.id,
-          content: match.metadata?.text,
+          content: match.payload?.text,
         } as Authority;
       });
 

@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type TaxQuery, type InsertTaxQuery, type Authority, type InsertAuthority } from "@shared/schema";
+import { type User, type InsertUser, type TaxQuery, type InsertTaxQuery, type Authority, type InsertAuthority, type IrcSyncStatus, type InsertIrcSyncStatus } from "@shared/schema";
 import { randomUUID } from "crypto";
 import * as cheerio from 'cheerio';
 
@@ -17,6 +17,11 @@ export interface IStorage {
   getAuthority(id: string): Promise<Authority | undefined>;
   getAuthorities(sourceTypes?: string[]): Promise<Authority[]>;
   createAuthority(authority: InsertAuthority): Promise<Authority>;
+
+  // IRC sync methods
+  getIrcSyncStatus(): Promise<IrcSyncStatus | undefined>;
+  updateIrcSyncStatus(status: InsertIrcSyncStatus): Promise<IrcSyncStatus>;
+
   initialize(): Promise<void>;
 }
 
@@ -24,6 +29,7 @@ export class MemStorage implements IStorage {
   private users: Map<string, User> = new Map();
   private taxQueries: Map<string, TaxQuery> = new Map();
   private authorities: Map<string, Authority> = new Map();
+  private ircSyncStatus: IrcSyncStatus | undefined;
 
   constructor() {
     // Now initialized via the async initialize() method
@@ -285,6 +291,26 @@ export class MemStorage implements IStorage {
     };
     this.authorities.set(id, authority);
     return authority;
+  }
+
+  // IRC sync methods
+  async getIrcSyncStatus(): Promise<IrcSyncStatus | undefined> {
+    return this.ircSyncStatus;
+  }
+
+  async updateIrcSyncStatus(insertStatus: InsertIrcSyncStatus): Promise<IrcSyncStatus> {
+    const id = this.ircSyncStatus?.id || randomUUID();
+    const status: IrcSyncStatus = {
+      ...insertStatus,
+      id,
+      lastSyncDate: insertStatus.lastSyncDate || null,
+      totalSections: insertStatus.totalSections ?? 0,
+      indexedSections: insertStatus.indexedSections ?? 0,
+      errorMessage: insertStatus.errorMessage || null,
+      updatedAt: new Date()
+    };
+    this.ircSyncStatus = status;
+    return status;
   }
 }
 

@@ -66,7 +66,7 @@ app.use((req, res, next) => {
   const port = parseInt(process.env.PORT || '5000', 10);
   server.listen({
     port,
-    host: "localhost", // Change from "0.0.0.0" to "localhost"
+    host: "0.0.0.0", // Listen on all network interfaces to allow Docker containers to connect
     // Remove reusePort: true for Windows compatibility
   }, () => {
     log(`serving on port ${port}`);

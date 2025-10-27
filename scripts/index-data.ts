@@ -4,7 +4,7 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 
 import { openaiService } from '../server/services/openai-service';
-import { pineconeService } from '../server/services/pinecone-service';
+import { qdrantService } from '../server/services/qdrant-service';
 
 // Function to read and parse authorities.md
 async function getUrlsFromMarkdown(filePath: string): Promise<string[]> {
@@ -89,6 +89,11 @@ async function indexData() {
   try {
     // Environment variables are already loaded via tsx -r dotenv/config
 
+    // Ensure Qdrant collection exists
+    console.log('Ensuring Qdrant collection exists...');
+    await qdrantService.ensureCollection(1536); // OpenAI text-embedding-3-small dimension
+    console.log('Qdrant collection ready!');
+
     const authoritiesFilePath = path.resolve(process.cwd(), 'authorities.md');
     const urls = await getUrlsFromMarkdown(authoritiesFilePath);
 
@@ -109,22 +114,22 @@ async function indexData() {
           const chunk = chunks[i];
           const embedding = await openaiService.generateEmbedding(chunk);
           
-          // Prepare metadata for Pinecone
+          // Prepare metadata for Qdrant
           const metadata = {
             url: url,
             chunk_index: i,
             text: chunk,
+            sourceType: 'general', // Will be enhanced for IRC sections
             // Add more metadata if available from parsing (e.g., title, section)
           };
 
-          // Upsert to Pinecone
-          // Pinecone requires IDs for each vector. We can generate a unique ID.
+          // Upsert to Qdrant
           const vectorId = `${url}-${i}`;
-          await pineconeService.upsert([
+          await qdrantService.upsert([
             {
               id: vectorId,
-              values: embedding,
-              metadata: metadata,
+              vector: embedding,
+              payload: metadata,
             },
           ]);
           console.log(`Indexed chunk ${i + 1} for ${url}`);
