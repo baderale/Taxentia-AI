@@ -39,8 +39,36 @@ services:
       timeout: 5s
       retries: 5
 
+  # Ollama - Local LLM service (Llama 3.1 8B for tax analysis)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: taxentia-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"  # Ollama API
+    volumes:
+      - ollama_models:/root/.ollama
+    environment:
+      - OLLAMA_NUM_GPU=1  # Adjust based on your GPU setup: 1 for GPU, 0 for CPU-only
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    # Uncomment the following lines if you're on a system with GPU support
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
 volumes:
   qdrant_storage:
     driver: local
   postgres_data:
+    driver: local
+  ollama_models:
     driver: local

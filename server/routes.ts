@@ -3,8 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
 import { taxResponseSchema, insertTaxQuerySchema, type Authority, users } from "@shared/schema";
+import { hybridLLMService } from "./services/hybrid-llm-service";
 import { openaiService } from "./services/openai-service";
-import { mockOpenAIService } from "./services/mock-openai-service";
 import { qdrantService } from "./services/qdrant-service";
 import passport from "passport";
 import { hashPassword, requireAuth } from "./auth";
@@ -137,18 +137,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get authenticated user ID
       const userId = req.user.id;
 
-      // Generate structured response using OpenAI or mock if API key not configured
+      // Generate structured response using Hybrid LLM (Ollama + GPT-4o Mini validation)
       let taxResponse;
-      if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== "default_key") {
-        try {
+      try {
+        taxResponse = await hybridLLMService.generateTaxResponse(query);
+      } catch (error) {
+        console.warn("Hybrid LLM service failed, falling back to OpenAI:", error);
+        if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== "default_key") {
           taxResponse = await openaiService.generateTaxResponse(query);
-        } catch (error) {
-          console.warn("OpenAI service failed, falling back to mock:", error);
-          taxResponse = await mockOpenAIService.generateTaxResponse(query);
+        } else {
+          throw new Error("All LLM services unavailable");
         }
-      } else {
-        console.log("Using mock OpenAI service (no API key configured)");
-        taxResponse = await mockOpenAIService.generateTaxResponse(query);
       }
 
       // Validate response structure
