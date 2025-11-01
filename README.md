@@ -193,6 +193,12 @@ npm run ingest:test         # Quick test (2 bulletins)
 npm run inspect:qdrant      # View ingested data statistics
 ```
 
+**Current Ingestion Status (as of Nov 2025):**
+- USC Title 26: ✅ Complete (1,612 sections → 3,730 chunks)
+- IRS Bulletins: ✅ 10 recent bulletins (27 documents → 409 chunks)
+- CFR Title 26: ⏳ Fetcher needs XML parsing fix (0 chunks)
+- **Total:** 4,146 vectors in Qdrant
+
 **Expected Costs:**
 - Test ingestion: ~$0.0006 (68 chunks)
 - USC Title 26: ~$0.05-0.10 (1,612 sections)
@@ -533,10 +539,12 @@ cat .env | grep OPENAI
 - [x] Confidence scoring
 
 ### **🚧 In Progress (v1.1)**
-- [ ] Full USC Title 26 ingestion (1,612 sections)
+- [x] Full USC Title 26 ingestion (1,612 sections → 3,730 chunks) ✅
+- [x] Recent IRS bulletin ingestion (10 bulletins → 409 chunks) ✅
+- [ ] CFR Title 26 ingestion (fetcher needs XML parsing fix)
 - [ ] Historical IRS bulletin ingestion (5+ years)
 - [ ] Query result caching
-- [ ] User authentication
+- [ ] Real user authentication (currently mock)
 
 ### **📋 Planned (v2.0)**
 - [ ] PDF export for client reports

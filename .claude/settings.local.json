@@ -49,7 +49,9 @@
       "Bash(cat:*)",
       "Bash(npm exec:*)",
       "Bash(wmic process:*)",
-      "mcp__MCP_DOCKER__sequentialthinking"
+      "mcp__MCP_DOCKER__sequentialthinking",
+      "Bash(find:*)",
+      "Bash(docker logs:*)"
     ],
     "defaultMode": "acceptEdits"
   }

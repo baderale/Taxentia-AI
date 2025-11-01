@@ -10,14 +10,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run build` - Build the application for production (Vite build + esbuild server bundle)
 
 ### Data Indexing
-- `npm run index-data` - Index authorities data into Pinecone vector database (compiles scripts first)
+- `npm run ingest:all` - Index all authorities data into Qdrant vector database
+- `npm run ingest:usc` - Index US Code Title 26 sections
+- `npm run ingest:cfr` - Index CFR Title 26 regulations
+- `npm run ingest:irb` - Index IRS Bulletins
+- `npm run inspect:qdrant` - Inspect indexed data in Qdrant
 
 ## Architecture Overview
 
 ### Tech Stack
 - **Frontend**: React + TypeScript + Vite, Tailwind CSS + Radix UI components
 - **Backend**: Express server with TypeScript
-- **AI/ML**: OpenAI GPT-5 for analysis, text-embedding-3-small for embeddings, Pinecone for vector storage
+- **AI/ML**: OpenAI GPT-5 for analysis, text-embedding-3-small for embeddings, Qdrant for vector storage (Docker)
 - **Database**: PostgreSQL with Drizzle ORM
 - **Authentication**: Passport.js with local strategy
 
@@ -28,17 +32,20 @@ server/          - Express backend services
   routes.ts      - API endpoints (/api/taxentia/query, /api/queries, health check)
   services/      - Core business logic services
     openai-service.ts   - OpenAI integration and RAG pipeline
-    pinecone-service.ts - Vector database operations
+    qdrant-service.ts   - Vector database operations
+    embeddings-service.ts - Embedding generation utilities
   storage.ts     - Database operations layer
 shared/          - Type definitions and schemas shared between client/server
-scripts/         - Data processing utilities (index-data.ts for Pinecone indexing)
-authorities.md   - Source URLs for tax authority documents to index
+scripts/         - Data processing utilities
+  fetchers/      - USC, CFR, and IRS bulletin fetchers
+  utils/         - Text chunker and embedding utilities
+  ingest-authorities.ts - Main ingestion orchestrator
 ```
 
 ### Core Data Flow (RAG Pipeline)
 1. User submits tax query via `/api/taxentia/query`
 2. Query embedding generated using OpenAI text-embedding-3-small
-3. Pinecone queried for top-5 relevant authority chunks
+3. Qdrant queried for top-5 relevant authority chunks (cosine similarity)
 4. OpenAI GPT-5 generates structured legal analysis with authorities
 5. Response validated against `taxResponseSchema` and saved to PostgreSQL
 
@@ -53,8 +60,8 @@ The system generates structured tax analysis with:
 ### Environment Variables Required
 - `OPENAI_API_KEY`: OpenAI API access
 - `OPENAI_MODEL_NAME`: Model name (defaults to "gpt-5")
-- `PINECONE_API_KEY`: Pinecone vector database access
-- `PINECONE_INDEX_NAME`: Target index name
+- `QDRANT_URL`: Qdrant vector database URL (defaults to "http://localhost:6333")
+- `QDRANT_COLLECTION_NAME`: Target collection name (defaults to "taxentia-authorities")
 - `DATABASE_URL`: PostgreSQL connection string
 
 ### Key Implementation Details
@@ -73,7 +80,8 @@ The system generates structured tax analysis with:
 - Frontend uses shadcn/ui components with Radix primitives
 - Backend uses Drizzle ORM with Zod validation
 - Shared types ensure consistency between client/server
-- Data indexing script processes authorities.md URLs into Pinecone vectors
+- Data ingestion scripts fetch, chunk, and embed tax authorities into Qdrant vectors
+- Qdrant runs in Docker via docker-compose for local development
 
 ## Deployment Strategy
 
@@ -90,6 +98,6 @@ The system generates structured tax analysis with:
 
 ### Production Scaling Considerations
 - **Architecture**: Load balancer → Auto-scaling container groups → Managed PostgreSQL
-- **External Services**: Pinecone (vector DB) + OpenAI (already external SaaS)
+- **External Services**: Qdrant (self-hosted vector DB in Docker) + OpenAI (external SaaS)
 - **Monitoring**: Health checks, logging, metrics collection
 - **Security**: Secrets management, VPC isolation, compliance (SOC2/GDPR)
