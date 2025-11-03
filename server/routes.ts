@@ -377,6 +377,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Admin endpoint to trigger data ingestion (WARNING: Long-running operation)
+  app.post("/api/taxentia/admin/ingest", async (req, res) => {
+    try {
+      const { type = 'all', secret } = req.body;
+
+      // Simple security check - require admin secret
+      if (secret !== process.env.ADMIN_SECRET) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Start ingestion in background
+      const { spawn } = await import("child_process");
+      const child = spawn("npm", ["run", `ingest:${type}`], {
+        detached: true,
+        stdio: "ignore"
+      });
+      child.unref();
+
+      res.json({
+        message: `Data ingestion started for type: ${type}`,
+        note: "This is a long-running operation. Check server logs for progress."
+      });
+    } catch (error) {
+      console.error("Ingestion trigger error:", error);
+      res.status(500).json({
+        message: error instanceof Error ? error.message : "Failed to start ingestion"
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
