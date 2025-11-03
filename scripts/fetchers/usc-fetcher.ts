@@ -26,52 +26,79 @@ export class USCFetcher {
   }
 
   /**
-   * Download Title 26 XML from uscode.house.gov
+   * Download Title 26 XML from uscode.house.gov with retry logic
    */
   async downloadTitle26XML(): Promise<string> {
     console.log('📥 Downloading US Code Title 26 XML (ZIP file)...');
 
-    try {
-      // The actual download URL for Title 26 XML (it's a ZIP file!)
-      const downloadUrl = `${this.baseUrl}/releasepoints/us/pl/119/36/xml_usc26@119-36.zip`;
+    const maxRetries = 3;
+    const timeouts = [180000, 300000, 420000]; // 3min, 5min, 7min
+    let lastError: Error | null = null;
 
-      const response = await axios.get(downloadUrl, {
-        responseType: 'arraybuffer',
-        headers: {
-          'User-Agent': 'Taxentia-AI/1.0 (Tax Research Application)',
-        },
-        timeout: 300000, // 5 minute timeout (large file download)
-      });
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const timeout = timeouts[attempt];
+        console.log(`🔄 Attempt ${attempt + 1}/${maxRetries} (timeout: ${timeout / 1000}s)...`);
 
-      console.log('✅ Downloaded Title 26 ZIP successfully');
+        // The actual download URL for Title 26 XML (it's a ZIP file!)
+        const downloadUrl = `${this.baseUrl}/releasepoints/us/pl/119/36/xml_usc26@119-36.zip`;
 
-      // Extract XML from ZIP
-      const zip = new AdmZip(Buffer.from(response.data));
-      const zipEntries = zip.getEntries();
+        const response = await axios.get(downloadUrl, {
+          responseType: 'arraybuffer',
+          headers: {
+            'User-Agent': 'Taxentia-AI/1.0 (Tax Research Application)',
+            'Accept-Encoding': 'gzip, deflate',
+          },
+          timeout: timeout,
+          maxRedirects: 5,
+        });
 
-      console.log(`📦 ZIP contains ${zipEntries.length} files`);
+        console.log('✅ Downloaded Title 26 ZIP successfully');
 
-      // Find the main XML file (usually usc26.xml or similar)
-      const xmlEntry = zipEntries.find(
-        (entry) => entry.entryName.endsWith('.xml') && !entry.entryName.includes('/')
-      );
+        // Extract XML from ZIP
+        const zip = new AdmZip(Buffer.from(response.data));
+        const zipEntries = zip.getEntries();
 
-      if (!xmlEntry) {
-        throw new Error('No XML file found in ZIP archive');
+        console.log(`📦 ZIP contains ${zipEntries.length} files`);
+
+        // Find the main XML file (usually usc26.xml or similar)
+        const xmlEntry = zipEntries.find(
+          (entry) => entry.entryName.endsWith('.xml') && !entry.entryName.includes('/')
+        );
+
+        if (!xmlEntry) {
+          throw new Error('No XML file found in ZIP archive');
+        }
+
+        console.log(`📄 Extracting ${xmlEntry.entryName}...`);
+        const xmlContent = zip.readAsText(xmlEntry);
+
+        console.log('✅ Extracted XML successfully');
+        return xmlContent;
+      } catch (error) {
+        lastError = error as Error;
+        if (axios.isAxiosError(error)) {
+          const errorMsg = error.code === 'ECONNABORTED' ? 'timeout' : error.message;
+          console.error(`❌ Attempt ${attempt + 1} failed: ${errorMsg}`);
+
+          // If this isn't the last attempt, wait before retrying
+          if (attempt < maxRetries - 1) {
+            const waitTime = (attempt + 1) * 5000; // 5s, 10s
+            console.log(`⏳ Waiting ${waitTime / 1000}s before retry...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+          }
+        } else {
+          throw error;
+        }
       }
-
-      console.log(`📄 Extracting ${xmlEntry.entryName}...`);
-      const xmlContent = zip.readAsText(xmlEntry);
-
-      console.log('✅ Extracted XML successfully');
-      return xmlContent;
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        console.error('❌ Failed to download USC Title 26:', error.message);
-        throw new Error(`Failed to download USC Title 26: ${error.message}`);
-      }
-      throw error;
     }
+
+    // All retries failed
+    if (axios.isAxiosError(lastError)) {
+      console.error('❌ Failed to download USC Title 26 after all retries:', lastError.message);
+      throw new Error(`Failed to download USC Title 26: ${lastError.message}`);
+    }
+    throw lastError || new Error('Failed to download USC Title 26');
   }
 
   /**
