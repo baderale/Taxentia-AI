@@ -137,12 +137,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get authenticated user ID
       const userId = req.user.id;
 
-      // Generate structured response using Hybrid LLM (Ollama + GPT-4o Mini validation)
+      // Generate structured response using GPT-4o Mini
       let taxResponse;
       try {
         taxResponse = await hybridLLMService.generateTaxResponse(query);
       } catch (error) {
-        console.warn("Hybrid LLM service failed, falling back to OpenAI:", error);
+        console.warn("GPT-4o Mini service failed, falling back to OpenAI:", error);
         if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== "default_key") {
           taxResponse = await openaiService.generateTaxResponse(query);
         } else {

@@ -45,7 +45,7 @@ Tax professionals spend countless hours researching complex questions across mul
 ### 🚀 **Advanced RAG Pipeline**
 
 - **Vector Search**: Qdrant-powered semantic retrieval of relevant tax authorities
-- **Hybrid LLM Architecture**: Ollama initium/law_model (legal-specialized) with GPT-4o Mini fallback for reliability
+- **GPT-4o Mini LLM**: OpenAI's cost-effective model for reliable tax analysis
 - **Smart Context**: Optimized token usage without sacrificing quality
 - **Comprehensive Sources**: US Code Title 26, CFR Title 26, IRS Bulletins (Revenue Rulings, Procedures, Notices, Treasury Decisions)
 
@@ -62,7 +62,7 @@ Tax professionals spend countless hours researching complex questions across mul
 ### **Backend Power**
 
 - **🚀 Express + TypeScript** - Robust API architecture
-- **🤖 Hybrid LLM** - Ollama initium/law_model (legal-specialized Mistral 7B) + GPT-4o Mini fallback
+- **🤖 GPT-4o Mini LLM** - OpenAI's cost-effective model for tax analysis
 - **📊 Qdrant Vector Database** - High-performance vector similarity search (running in Docker)
 - **🗄️ PostgreSQL + Drizzle ORM** - Reliable data persistence
 - **🔐 Passport.js** - Secure authentication
@@ -98,15 +98,9 @@ npm install
 Create a `.env` file (copy from `.env.example`):
 
 ```bash
-# OpenAI Configuration (for embeddings and fallback)
+# OpenAI Configuration (for embeddings and primary LLM)
 OPENAI_API_KEY=your_openai_api_key
 OPENAI_MODEL_NAME=gpt-4o-mini
-
-# Ollama Configuration (Primary LLM)
-OLLAMA_API_URL=http://localhost:11434
-OLLAMA_MODEL=initium/law_model
-OLLAMA_REQUEST_TIMEOUT=90000
-USE_GPT4O_VALIDATION=true
 
 # Vector Database (Docker)
 QDRANT_URL=http://localhost:6333
@@ -119,14 +113,8 @@ DATABASE_URL=postgresql://user:pass@localhost:5432/taxentia
 ### **3. Start Docker Services**
 
 ```bash
-# Start Qdrant vector database and Ollama LLM
-docker-compose up -d qdrant ollama
-
-# Pull the law-specific model (first-time setup, ~4.1GB)
-docker exec -it taxentia-ollama ollama pull initium/law_model
-
-# Verify Ollama is ready
-curl http://localhost:11434/api/tags
+# Start Qdrant vector database and PostgreSQL
+docker-compose up -d
 ```
 
 ### **4. Ingest Tax Authorities (First Time)**
@@ -281,9 +269,7 @@ Each vector in Qdrant stores rich metadata alongside the embedded text:
 1. User query is embedded into 1536-dimensional vector
 2. Qdrant performs cosine similarity search across **all 17k+ vectors**
 3. Top-5 most semantically similar chunks retrieved (regardless of source)
-4. Hybrid LLM generates analysis using retrieved context:
-   - **Primary**: Ollama initium/law_model (90s timeout)
-   - **Fallback**: GPT-4o Mini (if Ollama times out or fails)
+4. GPT-4o Mini generates analysis using retrieved context
 5. Authority hierarchy applied during response generation
 
 **Example Query**: "Section 179 depreciation limits"
@@ -341,13 +327,10 @@ graph TB
     B --> C[Vector Search<br/>Qdrant Cosine Similarity]
     C --> D[Retrieve Top-5 Chunks<br/>with Metadata]
     D --> E[Build Context<br/>Max 12,000 chars]
-    E --> F{Hybrid LLM}
-    F -->|Primary| G[Ollama law_model<br/>90s timeout]
-    F -->|Fallback| H[GPT-4o Mini<br/>if timeout/error]
-    G --> I[Validate Schema<br/>Zod]
-    H --> I
-    I --> J[Save to PostgreSQL<br/>Query History]
-    J --> K[Return to User<br/>Professional UI]
+    E --> F[GPT-4o Mini<br/>Generate Analysis]
+    F --> G[Validate Schema<br/>Zod]
+    G --> H[Save to PostgreSQL<br/>Query History]
+    H --> I[Return to User<br/>Professional UI]
 ```
 
 ### **Response Structure**
@@ -394,18 +377,15 @@ Each query returns a comprehensive, structured analysis:
 
 ### **Performance Metrics**
 
-- **Query Latency**:
-  - With Ollama (typical): 10-30 seconds
-    - Embedding: ~500ms
-    - Vector search: ~50ms
-    - Ollama analysis: ~10-25s
-  - With GPT-4o Mini (fallback): 15-20 seconds
-- **Cost per Query**:
-  - Ollama: ~$0.0002 (embeddings only, 99% savings)
-  - GPT-4o Mini fallback: ~$0.01-0.02
+- **Query Latency**: 3-5 seconds typical
+  - Embedding: ~500ms
+  - Vector search: ~50ms
+  - GPT-4o Mini analysis: ~2-4s
+- **Cost per Query**: ~$0.01-0.02
+  - Embeddings: ~$0.0002
+  - LLM generation: ~$0.01-0.015
 - **Accuracy**: 85%+ confidence typical
 - **Context Size**: Up to 12,000 characters
-- **Ollama Timeout**: 90 seconds (auto-fallback to GPT-4o Mini)
 
 ---
 
@@ -666,11 +646,10 @@ cat .env | grep OPENAI
 ### **✅ Completed (v1.0)**
 - [x] RAG pipeline with Qdrant
 - [x] Automated data ingestion for USC, CFR, IRS bulletins
-- [x] Hybrid LLM architecture (Ollama law_model + GPT-4o Mini fallback)
-- [x] 90-second timeout with automatic fallback for reliability
+- [x] GPT-4o Mini LLM integration for reliable tax analysis
 - [x] Professional UI with Tailwind + shadcn/ui
 - [x] Query history persistence
-- [x] Confidence scoring with optional async validation
+- [x] Confidence scoring and structured legal responses
 
 ### **🚧 In Progress (v1.1)**
 - [x] Full USC Title 26 ingestion (1,612 sections → 3,730 chunks) ✅
@@ -749,9 +728,7 @@ git push origin feature/your-feature
 ## 🙏 Acknowledgments
 
 Built with:
-- [Ollama](https://ollama.com) - Local LLM infrastructure
-- [initium/law_model](https://ollama.com/initium/law_model) - Legal-specialized Mistral 7B
-- [OpenAI](https://openai.com) - Embeddings and fallback LLM
+- [OpenAI](https://openai.com) - Embeddings and primary LLM
 - [Qdrant](https://qdrant.tech) - Vector database
 - [shadcn/ui](https://ui.shadcn.com) - UI components
 - [Vite](https://vitejs.dev) - Build tool

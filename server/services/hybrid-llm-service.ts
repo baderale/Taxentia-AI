@@ -81,18 +81,7 @@ JSON RESPONSE FORMAT:
   "disclaimer": "This analysis is for informational purposes for qualified tax professionals and is not legal or tax advice. All conclusions should be independently verified and professional judgment applied."
 }`;
 
-interface OllamaResponse {
-  model: string;
-  created_at: string;
-  response: string;
-  done: boolean;
-}
-
-class HybridLLMService {
-  private ollamaUrl = process.env.OLLAMA_API_URL || "http://localhost:11434";
-  private ollamaModel = process.env.OLLAMA_MODEL || "initium/law_model:Q4_K_S";
-  private ollamaTimeout = parseInt(process.env.OLLAMA_REQUEST_TIMEOUT || "90000", 10); // 90 seconds for legal analysis
-  private useGPT4oMiniValidation = process.env.USE_GPT4O_VALIDATION === "true";
+class GPT4oMiniService {
 
   async generateTaxResponse(query: string): Promise<TaxResponse> {
     try {
@@ -148,29 +137,11 @@ ${contextText}
 
 INSTRUCTIONS: Analyze using authority hierarchy (IRC→Regs→Pubs→Rulings→Cases). Generate precise pinpoint citations. Include direct URLs when possible. Provide actionable procedural guidance. Be comprehensive but token-efficient.`;
 
-      // 4. Try Ollama first for speed
-      console.log("Attempting to use Ollama for fast response...");
-      let response: TaxResponse | null = null;
-
-      try {
-        response = await this.generateWithOllama(userPrompt, authorities);
-        console.log("Successfully generated response with Ollama");
-
-        // If confidence is low and validation is enabled, validate with GPT-4o Mini async
-        if (this.useGPT4oMiniValidation && response.confidence.score < 70) {
-          console.log("Confidence below 70, queuing GPT-4o Mini validation async...");
-          this.validateWithGPT4oMini(query, contextText, response).catch(err =>
-            console.error("Async validation error:", err)
-          );
-        }
-      } catch (ollamaError) {
-        console.error("Ollama failed, falling back to GPT-4o Mini:", ollamaError);
-        response = await this.generateWithGPT4oMini(userPrompt, authorities);
-      }
-
+      // 4. Generate response using GPT-4o Mini
+      const response = await this.generateWithGPT4oMini(userPrompt, authorities);
       return response;
     } catch (error) {
-      console.error("Hybrid LLM error:", error);
+      console.error("GPT-4o Mini service error:", error);
 
       return {
         conclusion: "Unable to process query due to service unavailability. Please try again or contact support.",
@@ -187,73 +158,6 @@ INSTRUCTIONS: Analyze using authority hierarchy (IRC→Regs→Pubs→Rulings→C
           notes: "Service error - unable to provide reliable analysis"
         }
       };
-    }
-  }
-
-  private async generateWithOllama(userPrompt: string, authorities: any[]): Promise<TaxResponse> {
-    const messages = [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: userPrompt }
-    ];
-
-    console.log(`Calling Ollama with model: ${this.ollamaModel} (timeout: ${this.ollamaTimeout}ms)`);
-
-    // Create AbortController for timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      controller.abort();
-      console.warn(`Ollama request timed out after ${this.ollamaTimeout}ms`);
-    }, this.ollamaTimeout);
-
-    const startTime = Date.now();
-
-    try {
-      const response = await fetch(`${this.ollamaUrl}/api/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: this.ollamaModel,
-          messages: messages,
-          stream: false,
-          format: "json"
-        }),
-        signal: controller.signal
-      });
-
-      clearTimeout(timeoutId);
-      const responseTime = Date.now() - startTime;
-      console.log(`Ollama response received in ${responseTime}ms`);
-
-      if (!response.ok) {
-        throw new Error(`Ollama error: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json() as any;
-      const content = data.message?.content;
-
-      if (!content) {
-        throw new Error("No response content from Ollama");
-      }
-
-      console.log("Content received from Ollama, length:", content.length);
-      const parsedResponse = JSON.parse(content);
-
-      // Ensure color is set
-      if (parsedResponse.confidence && !parsedResponse.confidence.color) {
-        const score = parsedResponse.confidence.score;
-        parsedResponse.confidence.color = score >= 85 ? 'green' : score >= 60 ? 'amber' : 'red';
-      }
-
-      return this.enrichAuthorities(parsedResponse, authorities);
-    } catch (error: any) {
-      clearTimeout(timeoutId);
-
-      // Distinguish between timeout and other errors
-      if (error.name === 'AbortError') {
-        throw new Error(`Ollama request timed out after ${this.ollamaTimeout}ms - falling back to GPT-4o Mini`);
-      }
-
-      throw error;
     }
   }
 
@@ -314,47 +218,6 @@ INSTRUCTIONS: Analyze using authority hierarchy (IRC→Regs→Pubs→Rulings→C
         return this.enrichAuthorities(parsedResponse, authorities);
       }
       throw error;
-    }
-  }
-
-  private async validateWithGPT4oMini(query: string, context: string, ollamaResponse: TaxResponse): Promise<void> {
-    try {
-      console.log("Running async validation with GPT-4o Mini...");
-      const validationPrompt = `Review this tax analysis for accuracy and completeness:
-
-Query: ${query}
-
-Original Analysis Conclusion: ${ollamaResponse.conclusion}
-
-Authority Context:
-${context}
-
-Verify: 1) Are citations accurate? 2) Is the analysis complete? 3) Any missing authorities? 4) Any errors?
-
-Respond with JSON: { "isValid": boolean, "issues": string[], "suggestedCorrections": string[] }`;
-
-      const response = await openai.chat.completions.create({
-        model: process.env.OPENAI_MODEL_NAME || "gpt-4o-mini",
-        messages: [{ role: "user", content: validationPrompt }],
-        response_format: { type: "json_object" },
-        max_completion_tokens: 1000,
-        temperature: 0.1,
-      });
-
-      const content = response.choices?.[0]?.message?.content;
-      if (content) {
-        const validation = JSON.parse(content);
-        if (!validation.isValid) {
-          console.warn("Validation flagged issues:", validation.issues);
-          // Could update confidence or notify user
-          ollamaResponse.confidence.score = Math.max(ollamaResponse.confidence.score - 10, 0);
-          ollamaResponse.confidence.color = ollamaResponse.confidence.score >= 85 ? 'green' : ollamaResponse.confidence.score >= 60 ? 'amber' : 'red';
-        } else {
-          console.log("Validation passed: Response is accurate");
-        }
-      }
-    } catch (error) {
-      console.error("Validation error (non-critical):", error);
     }
   }
 
@@ -450,4 +313,6 @@ Respond with JSON: { "isValid": boolean, "issues": string[], "suggestedCorrectio
   }
 }
 
-export const hybridLLMService = new HybridLLMService();
+export const gpt4oMiniService = new GPT4oMiniService();
+// Legacy export for backward compatibility
+export const hybridLLMService = gpt4oMiniService;
