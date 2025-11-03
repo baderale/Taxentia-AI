@@ -85,6 +85,42 @@ The system generates structured tax analysis with:
 - Data ingestion scripts fetch, chunk, and embed tax authorities into Qdrant vectors
 - Qdrant runs in Docker via docker-compose for local development
 
+## Development Workflow Guidelines
+
+### Documentation Standards
+- **ALWAYS update `Changelog.md`** when making significant changes to the codebase
+  - Use semantic versioning (MAJOR.MINOR.PATCH)
+  - Follow "Keep a Changelog" format: Added, Changed, Deprecated, Removed, Fixed, Security
+  - Document breaking changes, new features, bug fixes, and infrastructure updates
+  - Include dates and version numbers for all entries
+
+### Code Quality Standards
+- **Always clean up the project folder** - Remove unused files, old configs, temporary scripts
+- **Update README.md** as appropriate when architecture or usage changes
+- **Push changes to GitHub** with clear, descriptive commit messages
+  - Use conventional commit format: `feat:`, `fix:`, `docs:`, `refactor:`, `chore:`
+  - Include context and reasoning in commit body when needed
+  - Reference issues or tickets when applicable
+
+### Commit Message Format
+```
+<type>: <subject>
+
+<body>
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+**Types:**
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `refactor`: Code refactoring
+- `chore`: Build process, dependencies, configs
+- `test`: Adding or updating tests
+
 ## Deployment Strategy
 
 ### Development Workflow: Local → Docker → AWS

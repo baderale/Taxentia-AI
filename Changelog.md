@@ -7,6 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Railway Production Deployment & Automated Updates (2025-11-03)
+
+####  Persistent Storage & Data Management
+- **Qdrant Persistent Volume**
+  - Created Railway volume for Qdrant service at `/qdrant/storage` (5GB)
+  - Configured `RAILWAY_RUN_UID=0` for proper volume permissions
+  - Data now persists across deployments (prevents data loss on redeployment)
+  - Verified volume mounting and Qdrant collection creation
+
+#### Automated Data Ingestion System
+- **Weekly IRS Bulletin Updates**
+  - Created `taxentia-ai-cron-irb` Railway cron service
+  - Configured automated weekly ingestion: Mondays at 3:00 AM Eastern (7 AM UTC)
+  - Fetches 5 most recent IRS bulletins automatically
+  - Restart policy set to "NEVER" (exits cleanly after completion)
+  - Estimated cost: ~$0.05-0.10 per weekly run
+
+- **Cron Configuration**
+  - Added `railway.cron.json` for cron service deployment configuration
+  - Configured environment variables (OPENAI_API_KEY, QDRANT_URL, QDRANT_COLLECTION_NAME)
+  - Set cron schedule: `0 7 * * 1` (Mondays at 3 AM Eastern)
+  - Start command: `npm run ingest:irb -- 5`
+
+#### Infrastructure Improvements
+- **Railway Service Architecture**
+  - Main application service (Taxentia-AI)
+  - Qdrant vector database service with persistent volume
+  - PostgreSQL database service (Railway addon)
+  - Cron service for automated updates (taxentia-ai-cron-irb)
+
+- **Admin API Enhancements**
+  - Verified admin ingestion endpoint: `POST /api/taxentia/admin/ingest`
+  - Supports triggering ingestion for `all`, `usc`, `cfr`, or `irb` sources
+  - Secured with `ADMIN_SECRET` environment variable
+  - Runs ingestion in background process with inherited stdio logging
+
+### Changed
+
+#### Deployment Process
+- **Data Ingestion Strategy**
+  - Ingestion now triggered via admin API endpoint for Railway deployment
+  - Background process spawning with `stdio: "inherit"` for log visibility
+  - Initial full ingestion running on Railway (USC, CFR, IRB)
+  - Expected completion time: 1-2 hours for full dataset
+
+#### Cornell LII USC Fetcher
+- **Direct Section Iteration Approach**
+  - Iterates through sections 1-9834 with 10-second rate limits (per robots.txt)
+  - Handles 404s gracefully for non-existent sections
+  - Successfully fetches ~1,500-2,000 valid IRC sections
+  - Fixed rate limiting from 100ms to 10,000ms per Cornell's robots.txt
+
+### Documentation
+
+#### New Documentation
+- **Development Workflow Guidelines** (CLAUDE.md)
+  - Added mandatory Changelog.md update requirement
+  - Documented commit message conventions
+  - Added code quality and cleanup standards
+  - Defined Git workflow best practices
+
+#### Updated Documentation
+- **README.md** - Updated deployment status and Railway configuration
+- **CLAUDE.md** - Added development workflow guidelines section
+
 ### Added - Railway Deployment & Investor Beta Preparation (2025-01-03)
 
 #### Infrastructure & Deployment

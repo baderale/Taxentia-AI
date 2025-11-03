@@ -570,26 +570,56 @@ open http://localhost:6333/dashboard
 
 ## 🚢 Deployment
 
-### **Current Architecture**
-- **Development**: npm-based with hot reload
-- **Vector DB**: Docker Qdrant (localhost:6333)
-- **Database**: PostgreSQL
-- **External APIs**: OpenAI
+### **Current Production Architecture (Railway)**
 
-### **Production Deployment (Future)**
+**Status**: ✅ **Deployed and operational on Railway**
 
 ```
-Local Development → Docker Containers → AWS Cloud
-                    → Kubernetes (EKS)
-                    → Load Balancer
-                    → Managed RDS
+Railway Production Environment
+├── Taxentia-AI (main application)
+│   ├── Express + React (port 8080)
+│   ├── Health check: /api/health
+│   └── URL: https://taxentia-ai-production.up.railway.app
+│
+├── Qdrant (vector database)
+│   ├── Persistent volume: /qdrant/storage (5GB)
+│   ├── Collection: taxentia-authorities
+│   └── Internal URL: qdrant.railway.internal:6333
+│
+├── PostgreSQL (database)
+│   ├── Railway managed addon
+│   └── Connection via DATABASE_URL
+│
+└── taxentia-ai-cron-irb (weekly updates)
+    ├── Schedule: Mondays at 3 AM Eastern
+    ├── Command: npm run ingest:irb -- 5
+    └── Auto-stops after completion
 ```
 
-**Considerations:**
-- 📈 **Scalability**: Auto-scaling container groups
-- 🔒 **Security**: VPC isolation, secrets management
-- 📊 **Monitoring**: CloudWatch, application metrics
-- 💾 **Data**: Managed PostgreSQL (RDS), Qdrant cluster
+### **Automated Data Updates**
+
+- **Weekly IRS Bulletins**: Every Monday at 3:00 AM Eastern
+- **On-Demand**: Via admin API (`POST /api/taxentia/admin/ingest`)
+- **Cost**: ~$0.05-0.10 per weekly update
+
+### **Development Workflow**
+
+```bash
+# Local development
+npm run dev  # Development server with hot reload
+
+# Data ingestion (local)
+npm run ingest:all  # Ingest all sources
+
+# Production deployment (Railway)
+railway up  # Deploy to Railway
+```
+
+### **Future Scalability Considerations**
+- 📈 **Auto-scaling**: Railway's horizontal scaling capabilities
+- 🔒 **Security**: Environment-based secrets, internal networking
+- 📊 **Monitoring**: Railway logs, health checks, uptime monitoring
+- 💾 **Data**: Persistent volumes for Qdrant, managed PostgreSQL
 
 ---
 
