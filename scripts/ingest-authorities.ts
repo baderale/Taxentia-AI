@@ -1,6 +1,7 @@
 #!/usr/bin/env tsx
 import 'dotenv/config';
 import { USCFetcher } from './fetchers/usc-fetcher.js';
+import { CornellLIIFetcher } from './fetchers/cornell-lii-fetcher.js';
 import { CFRFetcher } from './fetchers/cfr-fetcher.js';
 import { IRBFetcher } from './fetchers/irb-fetcher.js';
 import { TextChunker } from './utils/chunker.js';
@@ -35,6 +36,8 @@ class AuthorityIngestionPipeline {
 
   /**
    * Ingest US Code Title 26
+   * Primary: Cornell LII (fast, reliable, section-by-section)
+   * Fallback: house.gov ZIP (official but slow/timeout-prone)
    */
   async ingestUSC(skipIfExists: boolean = false): Promise<void> {
     console.log('\n' + '='.repeat(60));
@@ -42,11 +45,30 @@ class AuthorityIngestionPipeline {
     console.log('='.repeat(60) + '\n');
 
     const startTime = Date.now();
-    const fetcher = new USCFetcher();
+    let sections: any[] = [];
+
+    // Try Cornell LII first (primary source)
+    try {
+      console.log('🎯 Attempting Cornell LII fetch (primary source)...');
+      const cornellFetcher = new CornellLIIFetcher();
+      sections = await cornellFetcher.fetchAll();
+      console.log(`✅ Successfully fetched ${sections.length} sections from Cornell LII`);
+    } catch (cornellError) {
+      console.warn('⚠️ Cornell LII fetch failed:', cornellError instanceof Error ? cornellError.message : 'Unknown error');
+      console.log('🔄 Falling back to house.gov ZIP download...');
+
+      // Fallback to house.gov ZIP
+      try {
+        const uscFetcher = new USCFetcher();
+        sections = await uscFetcher.fetchAll();
+        console.log(`✅ Successfully fetched ${sections.length} sections from house.gov`);
+      } catch (uscError) {
+        console.error('❌ Both Cornell LII and house.gov failed!');
+        throw new Error(`All USC fetch methods failed. Cornell: ${cornellError instanceof Error ? cornellError.message : 'Unknown'}. House.gov: ${uscError instanceof Error ? uscError.message : 'Unknown'}`);
+      }
+    }
 
     try {
-      // Fetch sections
-      const sections = await fetcher.fetchAll();
       console.log(`📊 Retrieved ${sections.length} sections`);
 
       if (sections.length === 0) {
