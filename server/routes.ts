@@ -387,11 +387,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
 
-      // Start ingestion in background
+      // Start ingestion in background with logging
       const { spawn } = await import("child_process");
       const child = spawn("npm", ["run", `ingest:${type}`], {
         detached: true,
-        stdio: "ignore"
+        stdio: "inherit"
       });
       child.unref();
 
