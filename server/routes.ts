@@ -359,7 +359,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Health check endpoint
+  // Health check endpoint for Railway
+  app.get("/api/health", async (req, res) => {
+    res.json({
+      status: "healthy",
+      timestamp: new Date().toISOString(),
+      service: "taxentia-ai"
+    });
+  });
+
+  // Admin health check endpoint (legacy)
   app.get("/api/taxentia/admin/health", async (req, res) => {
     res.json({
       status: "healthy",
