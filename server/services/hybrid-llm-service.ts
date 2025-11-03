@@ -90,7 +90,8 @@ interface OllamaResponse {
 
 class HybridLLMService {
   private ollamaUrl = process.env.OLLAMA_API_URL || "http://localhost:11434";
-  private ollamaModel = process.env.OLLAMA_MODEL || "llama2";
+  private ollamaModel = process.env.OLLAMA_MODEL || "initium/law_model:Q4_K_S";
+  private ollamaTimeout = parseInt(process.env.OLLAMA_REQUEST_TIMEOUT || "90000", 10); // 90 seconds for legal analysis
   private useGPT4oMiniValidation = process.env.USE_GPT4O_VALIDATION === "true";
 
   async generateTaxResponse(query: string): Promise<TaxResponse> {
@@ -195,40 +196,65 @@ INSTRUCTIONS: Analyze using authority hierarchy (IRC→Regs→Pubs→Rulings→C
       { role: "user", content: userPrompt }
     ];
 
-    console.log(`Calling Ollama with model: ${this.ollamaModel}`);
+    console.log(`Calling Ollama with model: ${this.ollamaModel} (timeout: ${this.ollamaTimeout}ms)`);
 
-    const response = await fetch(`${this.ollamaUrl}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: this.ollamaModel,
-        messages: messages,
-        stream: false,
-        format: "json"
-      })
-    });
+    // Create AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+      console.warn(`Ollama request timed out after ${this.ollamaTimeout}ms`);
+    }, this.ollamaTimeout);
 
-    if (!response.ok) {
-      throw new Error(`Ollama error: ${response.status} ${response.statusText}`);
+    const startTime = Date.now();
+
+    try {
+      const response = await fetch(`${this.ollamaUrl}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: this.ollamaModel,
+          messages: messages,
+          stream: false,
+          format: "json"
+        }),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+      const responseTime = Date.now() - startTime;
+      console.log(`Ollama response received in ${responseTime}ms`);
+
+      if (!response.ok) {
+        throw new Error(`Ollama error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json() as any;
+      const content = data.message?.content;
+
+      if (!content) {
+        throw new Error("No response content from Ollama");
+      }
+
+      console.log("Content received from Ollama, length:", content.length);
+      const parsedResponse = JSON.parse(content);
+
+      // Ensure color is set
+      if (parsedResponse.confidence && !parsedResponse.confidence.color) {
+        const score = parsedResponse.confidence.score;
+        parsedResponse.confidence.color = score >= 85 ? 'green' : score >= 60 ? 'amber' : 'red';
+      }
+
+      return this.enrichAuthorities(parsedResponse, authorities);
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+
+      // Distinguish between timeout and other errors
+      if (error.name === 'AbortError') {
+        throw new Error(`Ollama request timed out after ${this.ollamaTimeout}ms - falling back to GPT-4o Mini`);
+      }
+
+      throw error;
     }
-
-    const data = await response.json() as any;
-    const content = data.message?.content;
-
-    if (!content) {
-      throw new Error("No response content from Ollama");
-    }
-
-    console.log("Content received from Ollama, length:", content.length);
-    const parsedResponse = JSON.parse(content);
-
-    // Ensure color is set
-    if (parsedResponse.confidence && !parsedResponse.confidence.color) {
-      const score = parsedResponse.confidence.score;
-      parsedResponse.confidence.color = score >= 85 ? 'green' : score >= 60 ? 'amber' : 'red';
-    }
-
-    return this.enrichAuthorities(parsedResponse, authorities);
   }
 
   private async generateWithGPT4oMini(userPrompt: string, authorities: any[]): Promise<TaxResponse> {

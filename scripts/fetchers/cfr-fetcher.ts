@@ -64,11 +64,19 @@ export class CFRFetcher {
     try {
       const parsed = this.xmlParser.parse(xmlContent);
 
-      // Navigate the eCFR XML structure
-      // Structure: TITLE -> CHAPTER -> SUBCHAPTER -> PART -> SUBPART -> SECTION
-      const title = parsed.TITLE || parsed.title || parsed;
+      // Navigate the actual eCFR XML structure from govinfo.gov
+      // Structure: DLPSTEXTCLASS -> TEXT -> BODY -> ECFRBRWS -> DIV elements
+      const root = parsed.DLPSTEXTCLASS?.TEXT?.BODY?.ECFRBRWS
+                || parsed.TITLE
+                || parsed.title
+                || parsed;
 
-      this.extractRegulations(title, regulations);
+      if (!root) {
+        console.warn('⚠️  Could not find expected XML root structure');
+        return regulations;
+      }
+
+      this.extractRegulations(root, regulations);
 
       console.log(`✅ Parsed ${regulations.length} regulations from CFR Title 26`);
       return regulations;
@@ -84,35 +92,40 @@ export class CFRFetcher {
   private extractRegulations(node: any, regulations: CFRRegulation[], context: any = {}): void {
     if (!node) return;
 
-    // Track part number for context
-    if (node['@_N'] && node.TAG === 'PART') {
+    // Track part number for context (DIV5 elements with TYPE="PART")
+    if (node['@_N'] && node['@_TYPE'] === 'PART') {
       context.part = node['@_N'];
     }
 
-    // Check if this is a SECTION node
-    if (node.TAG === 'SECTION' || node.SECTION) {
-      const sections = node.SECTION ? (Array.isArray(node.SECTION) ? node.SECTION : [node.SECTION]) : [node];
+    // Check if this is a SECTION node (DIV8 elements with TYPE="SECTION")
+    if (node['@_TYPE'] === 'SECTION') {
+      const sectionNum = node['@_N'] || 'unknown';
+      // The N attribute includes the § symbol and full citation (e.g., "§ 1.0-1")
+      // Extract just the numeric part
+      const cleanSectionNum = sectionNum.replace(/^§\s*/, '');
 
-      for (const section of sections) {
-        const sectionNum = section['@_N'] || section['@_num'] || 'unknown';
-        const subject = section.SUBJECT || section.subject || '';
-        const content = this.extractTextContent(section);
+      // Get title from HEAD element
+      const head = node.HEAD || '';
+      // HEAD contains the section number and description, extract just description
+      const title = typeof head === 'string'
+        ? head.replace(/^§\s*[\d\.\-\(\)]+\s*/, '').trim()
+        : this.extractTextContent(head).replace(/^§\s*[\d\.\-\(\)]+\s*/, '').trim();
 
-        if (content && content.length > 50) {
-          const fullSection = `${context.part}.${sectionNum}`;
-          regulations.push({
-            citation: `26 CFR § ${fullSection}`,
-            part: context.part || 'unknown',
-            section: fullSection,
-            title: typeof subject === 'string' ? subject : this.extractTextContent(subject),
-            text: content,
-            url: `https://www.ecfr.gov/current/title-26/section-${fullSection}`,
-          });
-        }
+      const content = this.extractTextContent(node);
+
+      if (content && content.length > 50) {
+        regulations.push({
+          citation: `26 CFR § ${cleanSectionNum}`,
+          part: context.part || 'unknown',
+          section: cleanSectionNum,
+          title: title || cleanSectionNum,
+          text: content,
+          url: `https://www.ecfr.gov/current/title-26/section-${cleanSectionNum}`,
+        });
       }
     }
 
-    // Recursively process child nodes
+    // Recursively process child nodes (including all DIV elements)
     for (const key in node) {
       if (typeof node[key] === 'object' && key !== '@_') {
         const childArray = Array.isArray(node[key]) ? node[key] : [node[key]];

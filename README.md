@@ -45,7 +45,7 @@ Tax professionals spend countless hours researching complex questions across mul
 ### 🚀 **Advanced RAG Pipeline**
 
 - **Vector Search**: Qdrant-powered semantic retrieval of relevant tax authorities
-- **GPT-5 Integration**: Latest OpenAI model for sophisticated analysis
+- **Hybrid LLM Architecture**: Ollama initium/law_model (legal-specialized) with GPT-4o Mini fallback for reliability
 - **Smart Context**: Optimized token usage without sacrificing quality
 - **Comprehensive Sources**: US Code Title 26, CFR Title 26, IRS Bulletins (Revenue Rulings, Procedures, Notices, Treasury Decisions)
 
@@ -62,7 +62,7 @@ Tax professionals spend countless hours researching complex questions across mul
 ### **Backend Power**
 
 - **🚀 Express + TypeScript** - Robust API architecture
-- **🤖 OpenAI GPT-5** - Advanced language model for analysis
+- **🤖 Hybrid LLM** - Ollama initium/law_model (legal-specialized Mistral 7B) + GPT-4o Mini fallback
 - **📊 Qdrant Vector Database** - High-performance vector similarity search (running in Docker)
 - **🗄️ PostgreSQL + Drizzle ORM** - Reliable data persistence
 - **🔐 Passport.js** - Secure authentication
@@ -98,9 +98,15 @@ npm install
 Create a `.env` file (copy from `.env.example`):
 
 ```bash
-# Core API Keys
+# OpenAI Configuration (for embeddings and fallback)
 OPENAI_API_KEY=your_openai_api_key
-OPENAI_MODEL_NAME=gpt-5
+OPENAI_MODEL_NAME=gpt-4o-mini
+
+# Ollama Configuration (Primary LLM)
+OLLAMA_API_URL=http://localhost:11434
+OLLAMA_MODEL=initium/law_model
+OLLAMA_REQUEST_TIMEOUT=90000
+USE_GPT4O_VALIDATION=true
 
 # Vector Database (Docker)
 QDRANT_URL=http://localhost:6333
@@ -113,8 +119,14 @@ DATABASE_URL=postgresql://user:pass@localhost:5432/taxentia
 ### **3. Start Docker Services**
 
 ```bash
-# Start Qdrant vector database
-docker-compose up -d qdrant
+# Start Qdrant vector database and Ollama LLM
+docker-compose up -d qdrant ollama
+
+# Pull the law-specific model (first-time setup, ~4.1GB)
+docker exec -it taxentia-ollama ollama pull initium/law_model
+
+# Verify Ollama is ready
+curl http://localhost:11434/api/tags
 ```
 
 ### **4. Ingest Tax Authorities (First Time)**
@@ -197,12 +209,125 @@ npm run inspect:qdrant      # View ingested data statistics
 - USC Title 26: ✅ Complete (1,612 sections → 3,730 chunks)
 - IRS Bulletins: ✅ 10 recent bulletins (27 documents → 409 chunks)
 - CFR Title 26: ⏳ Fetcher needs XML parsing fix (0 chunks)
-- **Total:** 4,146 vectors in Qdrant
+- **Total:** 17,122 vectors in Qdrant
 
 **Expected Costs:**
 - Test ingestion: ~$0.0006 (68 chunks)
 - USC Title 26: ~$0.05-0.10 (1,612 sections)
 - Full ingestion: ~$0.50-1.00 (all sources)
+
+---
+
+## 📊 Vector Database Structure
+
+### **Single Collection Architecture**
+
+Taxentia uses a **unified collection approach** where all tax authority data is stored together in one Qdrant collection:
+
+- **Collection Name**: `taxentia-authorities` (configurable via env)
+- **Total Vectors**: 17,122+ chunks across all sources
+- **Vector Dimensions**: 1536 (OpenAI text-embedding-3-small)
+- **Distance Metric**: Cosine similarity
+- **Organization**: Mixed data with metadata differentiation
+
+**Design Philosophy**: Rather than separating sources into different collections, all authorities are stored together in a unified semantic space. This enables cross-source retrieval where a single query can find relevant IRC sections, Treasury Regulations, and IRS guidance simultaneously.
+
+### **Data Organization by Source Type**
+
+All vectors are mixed together but differentiated by `source_type` metadata:
+
+| Source Type | Metadata Tag | Chunks | Citation Format |
+|-------------|--------------|--------|-----------------|
+| **US Code (IRC)** | `source_type: 'usc'` | 3,730 | `26 U.S.C. § 179` |
+| **CFR (Treasury Regs)** | `source_type: 'cfr'` | 13,000+ | `26 CFR § 1.179-1` |
+| **Revenue Rulings** | `source_type: 'revenue_ruling'` | ~8 | `Rev. Rul. 2024-01` |
+| **Revenue Procedures** | `source_type: 'revenue_procedure'` | ~2 | `Rev. Proc. 2024-10` |
+| **IRS Notices** | `source_type: 'notice'` | ~116 | `Notice 2024-45` |
+| **Treasury Decisions** | `source_type: 'treasury_decision'` | ~283 | `T.D. 9999` |
+
+### **Vector Payload Structure**
+
+Each vector in Qdrant stores rich metadata alongside the embedded text:
+
+```typescript
+{
+  // Core fields (all sources)
+  text: string,                    // Chunk content (max 2000 chars)
+  source_type: string,             // Source identifier
+  citation: string,                // Formatted legal citation
+  title: string,                   // Section/document title
+  url: string,                     // Reference URL
+  section: string,                 // Section identifier
+  chunk_index: number,             // Position in document (0-based)
+  total_chunks: number,            // Total chunks for this document
+
+  // CFR-specific metadata
+  part: string,                    // Part number (e.g., "1")
+
+  // IRS Bulletin-specific metadata
+  type: string,                    // Document type
+  number: string,                  // Document number (e.g., "2024-01")
+  bulletin_number: string,         // Bulletin ID (e.g., "2024-44")
+  bulletin_date: string,           // Year issued
+
+  // Internal tracking
+  originalId: string               // Original string ID before numeric conversion
+}
+```
+
+### **Query-Time Semantic Retrieval**
+
+**How it works:**
+1. User query is embedded into 1536-dimensional vector
+2. Qdrant performs cosine similarity search across **all 17k+ vectors**
+3. Top-5 most semantically similar chunks retrieved (regardless of source)
+4. Hybrid LLM generates analysis using retrieved context:
+   - **Primary**: Ollama initium/law_model (90s timeout)
+   - **Fallback**: GPT-4o Mini (if Ollama times out or fails)
+5. Authority hierarchy applied during response generation
+
+**Example Query**: "Section 179 depreciation limits"
+
+**Might retrieve:**
+- IRC § 179(b)(1) - Statutory dollar limits *(primary authority)*
+- 26 CFR § 1.179-1 - Implementing regulations *(secondary authority)*
+- Rev. Proc. 2024-08 - Current year inflation adjustments *(administrative guidance)*
+
+All ranked by semantic relevance, then hierarchically organized in the response.
+
+### **Inspecting Your Data**
+
+**Command Line:**
+```bash
+npm run inspect:qdrant
+# Shows: collection stats, sample points, source breakdown
+```
+
+**Web Dashboard:**
+```
+http://localhost:6333/dashboard
+```
+
+**Dashboard Features:**
+- Browse all collections and points
+- View vector metadata and payloads
+- Search by filters (source_type, section, etc.)
+- Monitor cluster health and performance
+- Visualize data distributions
+
+### **Why This Architecture?**
+
+**Benefits of Single Collection:**
+- ✅ **Unified Semantic Search**: Query once, search everything
+- ✅ **Cross-Authority Discovery**: IRC sections can surface related regulations
+- ✅ **Simplified Query Logic**: No multi-collection merging required
+- ✅ **Flexible Filtering**: Can filter by source_type when needed
+- ✅ **Authority Hierarchy**: Applied at generation time, not storage time
+
+**Trade-offs:**
+- ⚠️ **No Source Isolation**: Can't easily delete/update just one source
+- ⚠️ **Metadata Complexity**: Need consistent payload structure across sources
+- ✅ **Mitigated By**: Idempotent ingestion scripts, clear chunk ID conventions
 
 ---
 
@@ -216,10 +341,13 @@ graph TB
     B --> C[Vector Search<br/>Qdrant Cosine Similarity]
     C --> D[Retrieve Top-5 Chunks<br/>with Metadata]
     D --> E[Build Context<br/>Max 12,000 chars]
-    E --> F[GPT-5 Analysis<br/>Structured JSON Output]
-    F --> G[Validate Schema<br/>Zod]
-    G --> H[Save to PostgreSQL<br/>Query History]
-    H --> I[Return to User<br/>Professional UI]
+    E --> F{Hybrid LLM}
+    F -->|Primary| G[Ollama law_model<br/>90s timeout]
+    F -->|Fallback| H[GPT-4o Mini<br/>if timeout/error]
+    G --> I[Validate Schema<br/>Zod]
+    H --> I
+    I --> J[Save to PostgreSQL<br/>Query History]
+    J --> K[Return to User<br/>Professional UI]
 ```
 
 ### **Response Structure**
@@ -266,13 +394,18 @@ Each query returns a comprehensive, structured analysis:
 
 ### **Performance Metrics**
 
-- **Query Latency**: 4-6 seconds average
-  - Embedding: ~500ms
-  - Vector search: ~50ms
-  - GPT-5 generation: ~3-5s
-- **Cost per Query**: ~$0.03-0.05
+- **Query Latency**:
+  - With Ollama (typical): 10-30 seconds
+    - Embedding: ~500ms
+    - Vector search: ~50ms
+    - Ollama analysis: ~10-25s
+  - With GPT-4o Mini (fallback): 15-20 seconds
+- **Cost per Query**:
+  - Ollama: ~$0.0002 (embeddings only, 99% savings)
+  - GPT-4o Mini fallback: ~$0.01-0.02
 - **Accuracy**: 85%+ confidence typical
 - **Context Size**: Up to 12,000 characters
+- **Ollama Timeout**: 90 seconds (auto-fallback to GPT-4o Mini)
 
 ---
 
@@ -533,10 +666,11 @@ cat .env | grep OPENAI
 ### **✅ Completed (v1.0)**
 - [x] RAG pipeline with Qdrant
 - [x] Automated data ingestion for USC, CFR, IRS bulletins
-- [x] GPT-5 structured response generation
+- [x] Hybrid LLM architecture (Ollama law_model + GPT-4o Mini fallback)
+- [x] 90-second timeout with automatic fallback for reliability
 - [x] Professional UI with Tailwind + shadcn/ui
 - [x] Query history persistence
-- [x] Confidence scoring
+- [x] Confidence scoring with optional async validation
 
 ### **🚧 In Progress (v1.1)**
 - [x] Full USC Title 26 ingestion (1,612 sections → 3,730 chunks) ✅
@@ -615,7 +749,9 @@ git push origin feature/your-feature
 ## 🙏 Acknowledgments
 
 Built with:
-- [OpenAI](https://openai.com) - GPT-5 and embeddings
+- [Ollama](https://ollama.com) - Local LLM infrastructure
+- [initium/law_model](https://ollama.com/initium/law_model) - Legal-specialized Mistral 7B
+- [OpenAI](https://openai.com) - Embeddings and fallback LLM
 - [Qdrant](https://qdrant.tech) - Vector database
 - [shadcn/ui](https://ui.shadcn.com) - UI components
 - [Vite](https://vitejs.dev) - Build tool

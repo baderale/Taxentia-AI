@@ -51,7 +51,11 @@
       "Bash(wmic process:*)",
       "mcp__MCP_DOCKER__sequentialthinking",
       "Bash(find:*)",
-      "Bash(docker logs:*)"
+      "Bash(docker logs:*)",
+      "Bash(git log:*)",
+      "Bash(xargs cat:*)",
+      "WebFetch(domain:ollama.com)",
+      "Bash(git -C:*)"
     ],
     "defaultMode": "acceptEdits"
   }

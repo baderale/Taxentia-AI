@@ -21,7 +21,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Tech Stack
 - **Frontend**: React + TypeScript + Vite, Tailwind CSS + Radix UI components
 - **Backend**: Express server with TypeScript
-- **AI/ML**: OpenAI GPT-5 for analysis, text-embedding-3-small for embeddings, Qdrant for vector storage (Docker)
+- **AI/ML**: Hybrid LLM (Ollama initium/law_model + GPT-4o Mini fallback), text-embedding-3-small for embeddings, Qdrant for vector storage (Docker)
 - **Database**: PostgreSQL with Drizzle ORM
 - **Authentication**: Passport.js with local strategy
 
@@ -31,8 +31,9 @@ client/          - React frontend application
 server/          - Express backend services
   routes.ts      - API endpoints (/api/taxentia/query, /api/queries, health check)
   services/      - Core business logic services
-    openai-service.ts   - OpenAI integration and RAG pipeline
-    qdrant-service.ts   - Vector database operations
+    hybrid-llm-service.ts - Hybrid LLM service (Ollama + GPT-4o Mini fallback)
+    openai-service.ts     - Legacy OpenAI service (backup)
+    qdrant-service.ts     - Vector database operations
     embeddings-service.ts - Embedding generation utilities
   storage.ts     - Database operations layer
 shared/          - Type definitions and schemas shared between client/server
@@ -46,7 +47,10 @@ scripts/         - Data processing utilities
 1. User submits tax query via `/api/taxentia/query`
 2. Query embedding generated using OpenAI text-embedding-3-small
 3. Qdrant queried for top-5 relevant authority chunks (cosine similarity)
-4. OpenAI GPT-5 generates structured legal analysis with authorities
+4. Hybrid LLM generates structured legal analysis:
+   - **Primary**: Ollama initium/law_model (legal-specialized, 90s timeout)
+   - **Fallback**: GPT-4o Mini (if Ollama times out or fails)
+   - **Validation**: Optional async GPT-4o Mini validation for low confidence (<70%)
 5. Response validated against `taxResponseSchema` and saved to PostgreSQL
 
 ### Response Schema Structure
@@ -58,15 +62,22 @@ The system generates structured tax analysis with:
 - `confidence`: Score (0-100) with color coding and notes
 
 ### Environment Variables Required
-- `OPENAI_API_KEY`: OpenAI API access
-- `OPENAI_MODEL_NAME`: Model name (defaults to "gpt-5")
+- `OPENAI_API_KEY`: OpenAI API access (for embeddings and fallback/validation)
+- `OPENAI_MODEL_NAME`: Fallback model name (defaults to "gpt-4o-mini")
+- `OLLAMA_API_URL`: Ollama service URL (defaults to "http://localhost:11434")
+- `OLLAMA_MODEL`: Ollama model name (defaults to "initium/law_model")
+- `OLLAMA_REQUEST_TIMEOUT`: Timeout in ms before fallback (defaults to 90000 = 90 seconds)
+- `USE_GPT4O_VALIDATION`: Enable async validation for low confidence (true/false)
 - `QDRANT_URL`: Qdrant vector database URL (defaults to "http://localhost:6333")
 - `QDRANT_COLLECTION_NAME`: Target collection name (defaults to "taxentia-authorities")
 - `DATABASE_URL`: PostgreSQL connection string
 
 ### Key Implementation Details
-- Uses structured JSON output from OpenAI for consistent response format
+- Uses hybrid LLM architecture: Ollama initium/law_model (legal-specialized Mistral 7B) as primary, GPT-4o Mini as fallback
+- 90-second timeout on Ollama requests automatically triggers fallback to ensure reliability
+- Structured JSON output for consistent response format across both models
 - Implements confidence scoring based on authority strength and assumptions
+- Optional async GPT-4o Mini validation for responses with confidence < 70%
 - Vector search retrieves context from pre-indexed tax authority documents
 - Mock user authentication (userId: "mock-user-id") - implement real auth as needed
 - All tax analysis includes legal disclaimers and professional review requirements
@@ -98,6 +109,6 @@ The system generates structured tax analysis with:
 
 ### Production Scaling Considerations
 - **Architecture**: Load balancer → Auto-scaling container groups → Managed PostgreSQL
-- **External Services**: Qdrant (self-hosted vector DB in Docker) + OpenAI (external SaaS)
-- **Monitoring**: Health checks, logging, metrics collection
+- **External Services**: Qdrant (self-hosted vector DB in Docker) + Ollama (self-hosted LLM in Docker) + OpenAI (external SaaS for embeddings/fallback)
+- **Monitoring**: Health checks, logging, metrics collection, LLM response times and fallback rates
 - **Security**: Secrets management, VPC isolation, compliance (SOC2/GDPR)
