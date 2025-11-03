@@ -13,11 +13,12 @@ import type { TaxQuery, TaxResponse } from "@shared/schema";
 interface ChatInterfaceProps {
   selectedQuery: string | null;
   onCitationsToggle: () => void;
+  currentResponse: TaxQuery | null;
+  setCurrentResponse: (response: TaxQuery | null) => void;
 }
 
-export default function ChatInterface({ selectedQuery, onCitationsToggle }: ChatInterfaceProps) {
+export default function ChatInterface({ selectedQuery, onCitationsToggle, currentResponse, setCurrentResponse }: ChatInterfaceProps) {
   const [queryText, setQueryText] = useState("");
-  const [currentResponse, setCurrentResponse] = useState<TaxQuery | null>(null);
   const { toast } = useToast();
 
   // Fetch user queries

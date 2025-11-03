@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/lib/auth-context";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 
 export default function SettingsPanel() {
+  const { user } = useAuth();
   const [darkMode, setDarkMode] = useState(false);
   const [notifications, setNotifications] = useState(true);
   const [autoExport, setAutoExport] = useState(false);
@@ -128,10 +130,14 @@ export default function SettingsPanel() {
                 <User className="text-white w-6 h-6" />
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-gray-900">J. Smith, CPA</h3>
-                <p className="text-sm text-gray-600">j.smith@taxfirm.com</p>
+                <h3 className="font-semibold text-gray-900">
+                  {user?.fullName || user?.username || 'User'}
+                </h3>
+                <p className="text-sm text-gray-600">{user?.email || 'No email'}</p>
               </div>
-              <Badge className="bg-amber-500 text-white">Pro Plan</Badge>
+              <Badge className="bg-amber-500 text-white">
+                {user?.tier === 'pro' ? 'Pro Plan' : user?.tier === 'enterprise' ? 'Enterprise' : 'Free Plan'}
+              </Badge>
             </div>
           </Card>
 

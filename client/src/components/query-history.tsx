@@ -7,14 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useState } from "react";
+import { useAuth } from "@/lib/auth-context";
 import type { TaxQuery } from "@shared/schema";
 
 interface QueryHistoryProps {
-  onSelectQuery: (queryId: string) => void;
+  onSelectQuery: (query: TaxQuery) => void;
   selectedQuery: string | null;
 }
 
 export default function QueryHistory({ onSelectQuery, selectedQuery }: QueryHistoryProps) {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<"recent" | "confidence" | "topic">("recent");
   const [filterBy, setFilterBy] = useState<"all" | "high" | "medium" | "low">("all");
@@ -23,6 +25,18 @@ export default function QueryHistory({ onSelectQuery, selectedQuery }: QueryHist
   const { data: queries = [], isLoading } = useQuery<TaxQuery[]>({
     queryKey: ["/api/queries"],
   });
+
+  // Calculate today's usage
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayQueries = queries.filter(q => {
+    const queryDate = new Date(q.createdAt || 0);
+    queryDate.setHours(0, 0, 0, 0);
+    return queryDate.getTime() === today.getTime();
+  });
+  const todayCount = todayQueries.length;
+  const monthlyQuota = user?.apiQuotaMonthly || 100; // Default to 100 if not set
+  const usagePercent = Math.min((todayCount / Math.max(monthlyQuota / 30, 1)) * 100, 100); // Daily quota estimate
 
   // Enhanced filtering and sorting
   let filteredQueries = queries.filter(query => {
@@ -198,7 +212,7 @@ export default function QueryHistory({ onSelectQuery, selectedQuery }: QueryHist
               className={`bg-gray-50 hover:bg-gray-100 p-3 rounded-lg cursor-pointer border transition-colors ${
                 selectedQuery === query.id ? 'border-taxentia-blue bg-blue-50' : 'border-transparent hover:border-taxentia-blue'
               }`}
-              onClick={() => onSelectQuery(query.id)}
+              onClick={() => onSelectQuery(query)}
               data-testid={`query-item-${query.id}`}
             >
               <div className="text-sm font-medium text-gray-900 mb-1 line-clamp-2" data-testid={`query-title-${query.id}`}>
@@ -227,9 +241,14 @@ export default function QueryHistory({ onSelectQuery, selectedQuery }: QueryHist
       <div className="p-4 border-t border-gray-200 bg-gray-50 -mx-4" data-testid="usage-stats">
         <div className="text-xs text-gray-600 mb-2">Today's Usage</div>
         <div className="flex justify-between items-center">
-          <span className="text-sm font-medium" data-testid="usage-count">12 / 20 queries</span>
+          <span className="text-sm font-medium" data-testid="usage-count">
+            {todayCount} / {Math.floor(monthlyQuota / 30)} queries
+          </span>
           <div className="w-16 bg-gray-200 rounded-full h-2">
-            <div className="bg-taxentia-blue h-2 rounded-full" style={{ width: '60%' }}></div>
+            <div
+              className="bg-taxentia-blue h-2 rounded-full transition-all"
+              style={{ width: `${usagePercent}%` }}
+            ></div>
           </div>
         </div>
       </div>

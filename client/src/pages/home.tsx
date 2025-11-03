@@ -6,12 +6,22 @@ import SettingsPanel from "../components/settings-panel";
 import { useState } from "react";
 import { Scale, User, ChevronLeft, MessageSquare, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/auth-context";
+import type { TaxQuery, TaxResponse } from "@shared/schema";
 
 export default function Home() {
+  const { user } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [citationsPanelOpen, setCitationsPanelOpen] = useState(false);
   const [selectedQuery, setSelectedQuery] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<'chat' | 'dashboard'>('chat');
+  const [currentResponse, setCurrentResponse] = useState<TaxQuery | null>(null);
+
+  const handleSelectQuery = (query: TaxQuery) => {
+    setSelectedQuery(query.id);
+    setCurrentResponse(query);
+    setCurrentView('chat'); // Switch to chat view when selecting a query
+  };
 
   return (
     <div className="min-h-screen bg-taxentia-bg" data-testid="home-page">
@@ -55,16 +65,18 @@ export default function Home() {
             
             {/* Subscription Tier Badge */}
             <div className="bg-taxentia-gold text-white px-3 py-1 rounded-full text-sm font-medium" data-testid="subscription-badge">
-              Pro Plan
+              {user?.tier === 'pro' ? 'Pro Plan' : user?.tier === 'enterprise' ? 'Enterprise' : 'Free Plan'}
             </div>
-            
+
             {/* User Menu */}
             <div className="flex items-center space-x-2" data-testid="user-menu">
               <SettingsPanel />
               <div className="w-8 h-8 bg-taxentia-blue rounded-full flex items-center justify-center">
                 <User className="text-white w-4 h-4" />
               </div>
-              <span className="text-sm font-medium" data-testid="username">J. Smith, CPA</span>
+              <span className="text-sm font-medium" data-testid="username">
+                {user?.fullName || user?.username || 'User'}
+              </span>
             </div>
           </div>
         </div>
@@ -91,8 +103,8 @@ export default function Home() {
             </div>
             
             {!sidebarCollapsed && (
-              <QueryHistory 
-                onSelectQuery={setSelectedQuery}
+              <QueryHistory
+                onSelectQuery={handleSelectQuery}
                 selectedQuery={selectedQuery}
               />
             )}
@@ -102,9 +114,11 @@ export default function Home() {
         {/* Main Content Area */}
         <div className="flex-1 bg-white">
           {currentView === 'chat' ? (
-            <ChatInterface 
+            <ChatInterface
               selectedQuery={selectedQuery}
               onCitationsToggle={() => setCitationsPanelOpen(!citationsPanelOpen)}
+              currentResponse={currentResponse}
+              setCurrentResponse={setCurrentResponse}
             />
           ) : (
             <Dashboard />
@@ -112,9 +126,10 @@ export default function Home() {
         </div>
 
         {/* Citations Panel (Floating) */}
-        <CitationsPanel 
+        <CitationsPanel
           isOpen={citationsPanelOpen}
           onClose={() => setCitationsPanelOpen(false)}
+          authorities={currentResponse?.response ? (currentResponse.response as TaxResponse).authority : []}
         />
       </div>
     </div>

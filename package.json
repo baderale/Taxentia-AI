@@ -22,7 +22,11 @@
     "ingest:test": "cross-env NODE_ENV=development tsx -r dotenv/config scripts/ingest-authorities.ts test",
     "inspect:qdrant": "tsx scripts/inspect-qdrant.ts",
     "schedule:updates": "cross-env NODE_ENV=production tsx -r dotenv/config scripts/schedule-qdrant-updates.ts",
-    "schedule:updates:now": "cross-env NODE_ENV=production RUN_NOW=true tsx -r dotenv/config scripts/schedule-qdrant-updates.ts"
+    "schedule:updates:now": "cross-env NODE_ENV=production RUN_NOW=true tsx -r dotenv/config scripts/schedule-qdrant-updates.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

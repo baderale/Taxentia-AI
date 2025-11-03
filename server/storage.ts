@@ -36,11 +36,15 @@ export class MemStorage implements IStorage {
   }
 
   async initialize(): Promise<void> {
-    console.log("Initializing and fetching authorities...");
-    await this.initializeAuthorities();
-    console.log("Initialization complete.");
+    console.log("Storage initialization complete (authorities are pre-indexed in Qdrant).");
+    // NOTE: Authority fetching has been removed from initialization to prevent blocking server startup.
+    // All authority data should be pre-ingested into Qdrant using: npm run ingest:all
+    // This prevents Railway deployment timeouts and external dependency failures during startup.
   }
 
+  // DEPRECATED: This method is no longer called during initialization.
+  // Use the scripts/ingest-authorities.ts ingestion system instead for production.
+  // Kept for reference only - shows the authority sources that should be in Qdrant.
   private async initializeAuthorities(): Promise<void> {
     const authoritySources: Omit<InsertAuthority, 'content' | 'versionDate'>[] = [
       {

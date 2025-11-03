@@ -1,42 +1,16 @@
 import { X, ExternalLink, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import type { TaxResponse } from "@shared/schema";
 
 interface CitationsPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  authorities: TaxResponse['authority'];
 }
 
-export default function CitationsPanel({ isOpen, onClose }: CitationsPanelProps) {
+export default function CitationsPanel({ isOpen, onClose, authorities = [] }: CitationsPanelProps) {
   if (!isOpen) return null;
-
-  // Mock citation data - in real app this would come from props or API
-  const citations = [
-    {
-      id: 1,
-      citation: "IRC §195(a)",
-      title: "Startup Expenditures - Deduction and amortization provisions",
-      sourceType: "irc",
-      url: "https://www.law.cornell.edu/uscode/text/26/195",
-      content: "Except as otherwise provided in this section, no deduction shall be allowed for start-up expenditures...",
-    },
-    {
-      id: 2,
-      citation: "IRC §195(c)",
-      title: "Election Rules - Election to deduct startup expenditures",
-      sourceType: "irc", 
-      url: "https://www.law.cornell.edu/uscode/text/26/195",
-      content: "A taxpayer may elect to deduct so much of his start-up expenditures as does not exceed $5,000...",
-    },
-    {
-      id: 3,
-      citation: "IRS Pub. 535",
-      title: "Business Expenses - Chapter 8: Startup Costs",
-      sourceType: "pubs",
-      url: "https://www.irs.gov/publications/p535",
-      content: "Start-up costs are the expenses incurred before you actually begin business operations...",
-    },
-  ];
 
   const getSourceTypeLabel = (sourceType: string) => {
     switch (sourceType) {
@@ -85,7 +59,7 @@ export default function CitationsPanel({ isOpen, onClose }: CitationsPanelProps)
       </div>
       
       <div className="overflow-y-auto max-h-80" data-testid="citations-content">
-        {citations.length === 0 ? (
+        {authorities.length === 0 ? (
           <div className="p-4" data-testid="citations-empty">
             <div className="text-center py-8">
               <BookOpen className="w-8 h-8 text-gray-400 mx-auto mb-2" />
@@ -94,42 +68,52 @@ export default function CitationsPanel({ isOpen, onClose }: CitationsPanelProps)
           </div>
         ) : (
           <div className="p-4 space-y-4" data-testid="citations-list">
-            {citations.map((citation) => (
+            {authorities.map((authority, index) => (
               <div
-                key={citation.id}
+                key={`${authority.citation}-${index}`}
                 className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50 transition-colors"
-                data-testid={`citation-item-${citation.id}`}
+                data-testid={`citation-item-${index}`}
               >
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex-1">
-                    <h4 className="font-medium text-sm text-gray-900 mb-1" data-testid={`citation-citation-${citation.id}`}>
-                      {citation.citation}
+                    <h4 className="font-medium text-sm text-gray-900 mb-1" data-testid={`citation-citation-${index}`}>
+                      {authority.citation}
                     </h4>
-                    <p className="text-xs text-gray-600 mb-2" data-testid={`citation-title-${citation.id}`}>
-                      {citation.title}
+                    <p className="text-xs text-gray-600 mb-2" data-testid={`citation-title-${index}`}>
+                      {authority.title}
                     </p>
-                    <Badge 
-                      className={`text-xs ${getSourceTypeBadge(citation.sourceType)}`}
-                      data-testid={`citation-badge-${citation.id}`}
-                    >
-                      {getSourceTypeLabel(citation.sourceType)}
-                    </Badge>
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      <Badge
+                        className={`text-xs ${getSourceTypeBadge(authority.sourceType)}`}
+                        data-testid={`citation-badge-${index}`}
+                      >
+                        {getSourceTypeLabel(authority.sourceType)}
+                      </Badge>
+                      {authority.versionDate && (
+                        <Badge variant="outline" className="text-xs">
+                          {authority.versionDate}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                   <Button
                     variant="ghost"
                     size="sm"
                     asChild
-                    data-testid={`citation-link-${citation.id}`}
+                    data-testid={`citation-link-${index}`}
                   >
-                    <a href={citation.url} target="_blank" rel="noopener noreferrer">
+                    <a href={authority.url} target="_blank" rel="noopener noreferrer">
                       <ExternalLink className="w-3 h-3" />
                     </a>
                   </Button>
                 </div>
-                
-                <div className="text-xs text-gray-700 bg-gray-50 p-2 rounded border-l-2 border-taxentia-blue" data-testid={`citation-content-${citation.id}`}>
-                  {citation.content}
-                </div>
+
+                {authority.section && (
+                  <div className="text-xs text-gray-700 bg-gray-50 p-2 rounded border-l-2 border-taxentia-blue mb-1">
+                    <span className="font-semibold">Section:</span> {authority.section}
+                    {authority.subsection && ` (${authority.subsection})`}
+                  </div>
+                )}
               </div>
             ))}
           </div>
