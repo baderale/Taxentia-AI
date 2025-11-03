@@ -38,7 +38,7 @@ export class CFRFetcher {
         headers: {
           'User-Agent': 'Taxentia-AI/1.0 (Tax Research Application)',
         },
-        timeout: 120000, // 2 minute timeout (file is 83MB)
+        timeout: 300000, // 5 minute timeout (file is 83MB)
         maxContentLength: 100 * 1024 * 1024, // 100MB max
       });
 

@@ -40,7 +40,7 @@ export class USCFetcher {
         headers: {
           'User-Agent': 'Taxentia-AI/1.0 (Tax Research Application)',
         },
-        timeout: 120000, // 2 minute timeout
+        timeout: 300000, // 5 minute timeout (large file download)
       });
 
       console.log('✅ Downloaded Title 26 ZIP successfully');
