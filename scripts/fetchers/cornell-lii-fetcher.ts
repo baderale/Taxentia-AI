@@ -16,101 +16,75 @@ export interface USCSection {
  */
 export class CornellLIIFetcher {
   private baseUrl = 'https://www.law.cornell.edu/uscode/text/26';
-  private requestDelay = 100; // milliseconds between requests (rate limiting)
+  private requestDelay = 10000; // milliseconds between requests (rate limiting per robots.txt)
 
   constructor() {}
 
   /**
-   * Fetch all Title 26 sections from Cornell LII
+   * Fetch all Title 26 sections from Cornell LII using direct iteration
+   * Note: Cornell's navigation is hierarchical (5 levels deep), but we can access
+   * sections directly via URL pattern: /uscode/text/26/{number}
    */
   async fetchAll(): Promise<USCSection[]> {
     console.log('🚀 Starting Cornell LII Title 26 fetch...');
-    console.log('📥 Fetching table of contents from Cornell LII...');
+    console.log('📋 Using direct iteration approach (sections 1-9834)');
+    console.log('⏱️  Rate limit: 10 seconds between requests per robots.txt');
+
+    const sections: USCSection[] = [];
+    let successCount = 0;
+    let notFoundCount = 0;
+    let errorCount = 0;
+
+    // Known USC Title 26 section range
+    // Most sections are in the 1-9834 range based on typical USC structure
+    const MAX_SECTION = 9834;
 
     try {
-      // Step 1: Fetch the main Title 26 page to get list of sections
-      const response = await axios.get(this.baseUrl, {
-        headers: {
-          'User-Agent': 'Taxentia-AI/1.0 (Tax Research Application)',
-        },
-        timeout: 30000, // 30 second timeout
-      });
+      console.log(`📚 Attempting to fetch up to ${MAX_SECTION} sections...`);
 
-      const $ = cheerio.load(response.data);
-      const sectionLinks: Array<{ section: string; url: string; title: string }> = [];
-
-      // Parse the table of contents to extract section links
-      // Cornell uses different HTML structures, so we need to be flexible
-      console.log('🔍 Parsing table of contents...');
-
-      // Look for section links in the main content area
-      // Cornell typically uses <li> or <a> elements with section numbers
-      $('a[href*="/uscode/text/26/"]').each((i, element) => {
-        const href = $(element).attr('href');
-        const text = $(element).text().trim();
-
-        if (href && href.includes('/uscode/text/26/')) {
-          // Extract section number from URL
-          const match = href.match(/\/uscode\/text\/26\/(\d+[A-Za-z]?)/);
-          if (match && match[1]) {
-            const sectionNum = match[1];
-            const fullUrl = href.startsWith('http') ? href : `https://www.law.cornell.edu${href}`;
-
-            // Skip if we already have this section
-            if (!sectionLinks.find(link => link.section === sectionNum)) {
-              sectionLinks.push({
-                section: sectionNum,
-                url: fullUrl,
-                title: text || `Section ${sectionNum}`,
-              });
-            }
-          }
-        }
-      });
-
-      console.log(`✅ Found ${sectionLinks.length} section links`);
-
-      if (sectionLinks.length === 0) {
-        console.warn('⚠️ No section links found in table of contents');
-        console.warn('This might indicate a change in Cornell LII HTML structure');
-        throw new Error('No sections found in Cornell LII table of contents');
-      }
-
-      // Step 2: Fetch each section (with rate limiting)
-      const sections: USCSection[] = [];
-      let successCount = 0;
-      let failCount = 0;
-
-      console.log(`📚 Fetching ${sectionLinks.length} sections...`);
-
-      for (let i = 0; i < sectionLinks.length; i++) {
-        const link = sectionLinks[i];
-
+      for (let sectionNum = 1; sectionNum <= MAX_SECTION; sectionNum++) {
         try {
-          const section = await this.fetchSection(link.url, link.section, link.title);
+          const section = await this.fetchSectionByNumber(sectionNum.toString());
+
           if (section) {
             sections.push(section);
             successCount++;
 
             // Log progress every 100 sections
-            if ((i + 1) % 100 === 0) {
-              console.log(`  Progress: ${i + 1}/${sectionLinks.length} sections fetched`);
+            if (sectionNum % 100 === 0) {
+              console.log(`  Progress: ${sectionNum}/${MAX_SECTION} checked | ✅ ${successCount} found | ⏭️  ${notFoundCount} skipped | ❌ ${errorCount} errors`);
             }
+          } else {
+            notFoundCount++;
           }
         } catch (error) {
-          failCount++;
-          console.warn(`⚠️ Failed to fetch section ${link.section}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          // Handle 404s and other errors gracefully
+          if (axios.isAxiosError(error) && error.response?.status === 404) {
+            notFoundCount++;
+          } else {
+            errorCount++;
+            if (errorCount % 10 === 0) {
+              console.warn(`⚠️ ${errorCount} errors encountered (continuing...)`);
+            }
+          }
         }
 
-        // Rate limiting: wait between requests
-        if (i < sectionLinks.length - 1) {
+        // Rate limiting: wait between requests (except for last one)
+        if (sectionNum < MAX_SECTION) {
           await this.delay(this.requestDelay);
         }
       }
 
-      console.log(`✅ Successfully fetched ${successCount} sections`);
-      if (failCount > 0) {
-        console.warn(`⚠️ Failed to fetch ${failCount} sections`);
+      console.log('\n' + '='.repeat(60));
+      console.log('📊 Cornell LII Fetch Complete');
+      console.log('='.repeat(60));
+      console.log(`✅ Successfully fetched: ${successCount} sections`);
+      console.log(`⏭️  Not found (404s): ${notFoundCount} sections`);
+      console.log(`❌ Errors: ${errorCount} sections`);
+      console.log('='.repeat(60) + '\n');
+
+      if (sections.length === 0) {
+        throw new Error('No sections found - Cornell LII may be unreachable or structure changed');
       }
 
       return sections;
@@ -216,7 +190,6 @@ export class CornellLIIFetcher {
    */
   async fetchSectionByNumber(sectionNum: string): Promise<USCSection | null> {
     const url = `${this.baseUrl}/${sectionNum}`;
-    console.log(`📥 Fetching section ${sectionNum} from Cornell LII...`);
     return this.fetchSection(url, sectionNum, `Section ${sectionNum}`);
   }
 }
