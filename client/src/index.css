@@ -1,55 +1,78 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+/* Fonts imported in index.html: Rubik (headings), Inter (body), Source Code Pro (code) */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --background: hsl(0 0% 100%);
-  --foreground: hsl(210 25% 7.8431%);
-  --card: hsl(180 6.6667% 97.0588%);
-  --card-foreground: hsl(210 25% 7.8431%);
-  --popover: hsl(0 0% 100%);
-  --popover-foreground: hsl(210 25% 7.8431%);
-  --primary: hsl(211.8 100% 26.9%);
-  --primary-foreground: hsl(0 0% 100%);
-  --secondary: hsl(210 25% 7.8431%);
-  --secondary-foreground: hsl(0 0% 100%);
-  --muted: hsl(240 1.9608% 90%);
-  --muted-foreground: hsl(210 25% 7.8431%);
-  --accent: hsl(217.9 46.7% 66.9%);
-  --accent-foreground: hsl(0 0% 100%);
-  --destructive: hsl(356.3033 90.5579% 54.3137%);
-  --destructive-foreground: hsl(0 0% 100%);
-  --border: hsl(201.4286 30.4348% 90.9804%);
-  --input: hsl(200 23.0769% 97.4510%);
-  --ring: hsl(211.8 100% 26.9%);
-  --chart-1: hsl(211.8 100% 26.9%);
-  --chart-2: hsl(159.7826 100% 36.0784%);
-  --chart-3: hsl(42.0290 92.8251% 56.2745%);
-  --chart-4: hsl(147.1429 78.5047% 41.9608%);
-  --chart-5: hsl(341.4894 75.2000% 50.9804%);
-  --sidebar: hsl(180 6.6667% 97.0588%);
-  --sidebar-foreground: hsl(210 25% 7.8431%);
-  --sidebar-primary: hsl(211.8 100% 26.9%);
-  --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(217.9 46.7% 66.9%);
-  --sidebar-accent-foreground: hsl(0 0% 100%);
-  --sidebar-border: hsl(205.0000 25.0000% 90.5882%);
-  --sidebar-ring: hsl(211.8 100% 26.9%);
-  --font-sans: Inter, system-ui, sans-serif;
-  --font-serif: Georgia, serif;
-  --font-mono: 'JetBrains Mono', Menlo, monospace;
-  
-  /* Enhanced Taxentia Brand Colors */
-  --taxentia-navy: #1e293b;
-  --taxentia-blue: #3b82f6;
-  --taxentia-gold: #f59e0b;
-  --taxentia-bg: #f8fafc;
+  /* Official Taxentia Font Stack */
+  --font-heading: 'Rubik', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-mono: 'Source Code Pro', 'Courier New', monospace;
+
+  /* Legacy font variables for backward compatibility */
+  --font-sans: var(--font-body);
+  --font-serif: Georgia, serif; /* Keep for specific legal text if needed */
+
+  /* ===== Official Taxentia Design System ===== */
+
+  /* Core Brand Colors */
+  --taxentia-navy: #073D7F;
+  --taxentia-sky: #6491DE;
+  --taxentia-gold: #F4B443;
+  --taxentia-light-gray: #F1F1F1;
+  --taxentia-white: #FFFFFF;
+
+  /* Semantic Colors */
+  --taxentia-crimson: #D7263D;
+  --taxentia-emerald: #2BAE66;
+  --taxentia-slate: #D3D8E0;
+  --taxentia-sky-light: #A7C3F2;
+  --taxentia-text-slate: #4B5563;
+
+  /* Legacy gray scale (keeping for compatibility) */
   --taxentia-gray-50: #f8fafc;
   --taxentia-gray-100: #f1f5f9;
   --taxentia-gray-200: #e2e8f0;
+  --taxentia-bg: var(--taxentia-light-gray);
+
+  /* Mapped Shadcn/UI Colors (updated to Taxentia system) */
+  --background: var(--taxentia-white);
+  --foreground: var(--taxentia-navy);
+  --card: var(--taxentia-white);
+  --card-foreground: var(--taxentia-navy);
+  --popover: var(--taxentia-white);
+  --popover-foreground: var(--taxentia-navy);
+  --primary: var(--taxentia-navy);
+  --primary-foreground: var(--taxentia-white);
+  --secondary: var(--taxentia-sky);
+  --secondary-foreground: var(--taxentia-white);
+  --muted: var(--taxentia-light-gray);
+  --muted-foreground: var(--taxentia-text-slate);
+  --accent: var(--taxentia-sky);
+  --accent-foreground: var(--taxentia-white);
+  --destructive: var(--taxentia-crimson);
+  --destructive-foreground: var(--taxentia-white);
+  --border: var(--taxentia-slate);
+  --input: var(--taxentia-white);
+  --ring: var(--taxentia-sky);
+
+  /* Chart colors using Taxentia palette */
+  --chart-1: var(--taxentia-navy);
+  --chart-2: var(--taxentia-emerald);
+  --chart-3: var(--taxentia-gold);
+  --chart-4: var(--taxentia-sky);
+  --chart-5: var(--taxentia-crimson);
+
+  /* Sidebar colors */
+  --sidebar: var(--taxentia-light-gray);
+  --sidebar-foreground: var(--taxentia-navy);
+  --sidebar-primary: var(--taxentia-navy);
+  --sidebar-primary-foreground: var(--taxentia-white);
+  --sidebar-accent: var(--taxentia-sky);
+  --sidebar-accent-foreground: var(--taxentia-white);
+  --sidebar-border: var(--taxentia-slate);
+  --sidebar-ring: var(--taxentia-sky);
   
   /* Professional Shadows */
   --shadow-elegant: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
@@ -114,7 +137,7 @@
 /* Enhanced focus states */
 .focus-ring:focus {
   outline: none;
-  box-shadow: 0 0 0 2px var(--taxentia-blue), 0 0 0 4px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 0 2px var(--taxentia-sky), 0 0 0 4px rgba(100, 145, 222, 0.1);
 }
 
 /* Legal text styling */
@@ -173,36 +196,46 @@
   }
 
   body {
-    @apply font-sans antialiased bg-background text-foreground;
+    font-family: var(--font-body);
+    @apply antialiased bg-background text-foreground;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+  }
+
+  code, pre, kbd, samp {
+    font-family: var(--font-mono);
   }
 }
 
 @layer utilities {
-  .taxentia-navy {
-    color: hsl(211.8 100% 26.9%);
-  }
-  
-  .bg-taxentia-navy {
-    background-color: hsl(211.8 100% 26.9%);
-  }
-  
-  .taxentia-blue {
-    color: hsl(217.9 46.7% 66.9%);
-  }
-  
-  .bg-taxentia-blue {
-    background-color: hsl(217.9 46.7% 66.9%);
-  }
-  
-  .taxentia-gold {
-    color: hsl(42.0290 92.8251% 56.2745%);
-  }
-  
-  .bg-taxentia-gold {
-    background-color: hsl(42.0290 92.8251% 56.2745%);
-  }
-  
-  .bg-taxentia-bg {
-    background-color: hsl(0 0% 94.5%);
-  }
+  /* Taxentia Color Utilities */
+  .text-taxentia-navy { color: var(--taxentia-navy); }
+  .bg-taxentia-navy { background-color: var(--taxentia-navy); }
+  .border-taxentia-navy { border-color: var(--taxentia-navy); }
+
+  .text-taxentia-sky { color: var(--taxentia-sky); }
+  .bg-taxentia-sky { background-color: var(--taxentia-sky); }
+  .border-taxentia-sky { border-color: var(--taxentia-sky); }
+
+  .text-taxentia-gold { color: var(--taxentia-gold); }
+  .bg-taxentia-gold { background-color: var(--taxentia-gold); }
+  .border-taxentia-gold { border-color: var(--taxentia-gold); }
+
+  .text-taxentia-crimson { color: var(--taxentia-crimson); }
+  .bg-taxentia-crimson { background-color: var(--taxentia-crimson); }
+
+  .text-taxentia-emerald { color: var(--taxentia-emerald); }
+  .bg-taxentia-emerald { background-color: var(--taxentia-emerald); }
+
+  .bg-taxentia-light-gray { background-color: var(--taxentia-light-gray); }
+  .bg-taxentia-sky-light { background-color: var(--taxentia-sky-light); }
+
+  /* Legacy compatibility */
+  .taxentia-navy { color: var(--taxentia-navy); }
+  .taxentia-blue { color: var(--taxentia-sky); }
+  .bg-taxentia-blue { background-color: var(--taxentia-sky); }
+  .taxentia-gold { color: var(--taxentia-gold); }
+  .bg-taxentia-bg { background-color: var(--taxentia-light-gray); }
 }
