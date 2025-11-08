@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/lib/auth-context";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import AuthPage from "@/pages/auth";
+import Landing from "@/pages/landing";
 import { Loader2 } from "lucide-react";
 
 function Router() {
@@ -24,8 +25,8 @@ function Router() {
     return (
       <Switch>
         <Route path="/auth" component={AuthPage} />
-        <Route path="/" component={AuthPage} />
-        <Route component={AuthPage} />
+        <Route path="/" component={Landing} />
+        <Route component={Landing} />
       </Switch>
     );
   }
