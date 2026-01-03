@@ -17,6 +17,10 @@
     "test:watch": "vitest --watch",
     "test:auth": "vitest run client/src/pages/auth.test.tsx",
     "test:chat": "vitest run client/src/components/chat-interface.test.tsx",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug",
     "ingest:authorities": "cross-env NODE_ENV=development tsx -r dotenv/config scripts/ingest-authorities.ts",
     "ingest:usc": "cross-env NODE_ENV=development tsx -r dotenv/config scripts/ingest-authorities.ts usc",
     "ingest:cfr": "cross-env NODE_ENV=development tsx -r dotenv/config scripts/ingest-authorities.ts cfr",
@@ -106,6 +110,7 @@
     "zod-validation-error": "^3.4.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "@replit/vite-plugin-cartographer": "^0.2.8",
     "@replit/vite-plugin-runtime-error-modal": "^0.0.3",
     "@tailwindcss/typography": "^0.5.15",

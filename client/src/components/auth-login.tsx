@@ -41,13 +41,15 @@ export default function AuthLogin({ onSuccess, onSwitchToSignup }: LoginProps) {
   const displayError = localError || error;
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader>
-        <CardTitle>Welcome Back</CardTitle>
-        <CardDescription>Sign in to your Taxentia account</CardDescription>
+    <Card className="w-full max-w-md shadow-lg border-taxentia-slate">
+      <CardHeader className="space-y-2 pb-6">
+        <CardTitle className="font-heading text-h2 text-taxentia-navy">Welcome Back</CardTitle>
+        <CardDescription className="font-body text-body text-taxentia-text-slate">
+          Sign in to your Taxentia account
+        </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           {displayError && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
@@ -56,38 +58,44 @@ export default function AuthLogin({ onSuccess, onSwitchToSignup }: LoginProps) {
           )}
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Email</label>
+            <label className="font-body text-sm font-medium text-taxentia-navy">Email</label>
             <Input
               type="email"
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
+              className="font-body border-taxentia-slate focus:ring-2 focus:ring-taxentia-sky focus:border-taxentia-sky"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Password</label>
+            <label className="font-body text-sm font-medium text-taxentia-navy">Password</label>
             <Input
               type="password"
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
+              className="font-body border-taxentia-slate focus:ring-2 focus:ring-taxentia-sky focus:border-taxentia-sky"
             />
           </div>
 
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button
+            type="submit"
+            className="w-full bg-taxentia-sky hover:bg-taxentia-sky-light text-white font-heading font-semibold py-6 text-base shadow-md transition-colors"
+            disabled={loading}
+          >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Sign In
           </Button>
 
-          <div className="text-center text-sm">
-            <span className="text-gray-600">Don't have an account? </span>
+          <div className="text-center text-sm pt-2">
+            <span className="font-body text-taxentia-text-slate">Don't have an account? </span>
             <button
               type="button"
               onClick={onSwitchToSignup}
-              className="text-blue-600 hover:underline font-medium"
+              className="font-body text-taxentia-sky hover:text-taxentia-navy hover:underline font-semibold"
             >
               Sign up
             </button>

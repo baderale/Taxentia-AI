@@ -60,10 +60,12 @@ export default function AuthSignup({ onSuccess, onSwitchToLogin }: SignupProps) 
   const displayError = localError || error;
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader>
-        <CardTitle>Create Account</CardTitle>
-        <CardDescription>Join Taxentia for AI-powered tax guidance</CardDescription>
+    <Card className="w-full max-w-md shadow-lg border-taxentia-slate">
+      <CardHeader className="space-y-2 pb-6">
+        <CardTitle className="font-heading text-h2 text-taxentia-navy">Create Account</CardTitle>
+        <CardDescription className="font-body text-body text-taxentia-text-slate">
+          Join Taxentia for AI-powered tax guidance
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -75,72 +77,81 @@ export default function AuthSignup({ onSuccess, onSwitchToLogin }: SignupProps) 
           )}
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Email</label>
+            <label className="font-body text-sm font-medium text-taxentia-navy">Email</label>
             <Input
               type="email"
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
+              className="font-body border-taxentia-slate focus:ring-2 focus:ring-taxentia-sky focus:border-taxentia-sky"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Username</label>
+            <label className="font-body text-sm font-medium text-taxentia-navy">Username</label>
             <Input
               type="text"
               placeholder="your_username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={loading}
+              className="font-body border-taxentia-slate focus:ring-2 focus:ring-taxentia-sky focus:border-taxentia-sky"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Full Name (Optional)</label>
+            <label className="font-body text-sm font-medium text-taxentia-navy">Full Name (Optional)</label>
             <Input
               type="text"
               placeholder="John Doe"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               disabled={loading}
+              className="font-body border-taxentia-slate focus:ring-2 focus:ring-taxentia-sky focus:border-taxentia-sky"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Password</label>
+            <label className="font-body text-sm font-medium text-taxentia-navy">Password</label>
             <Input
               type="password"
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
+              className="font-body border-taxentia-slate focus:ring-2 focus:ring-taxentia-sky focus:border-taxentia-sky"
             />
-            <p className="text-xs text-gray-500">At least 8 characters</p>
+            <p className="font-body text-xs text-taxentia-text-slate">At least 8 characters</p>
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Confirm Password</label>
+            <label className="font-body text-sm font-medium text-taxentia-navy">Confirm Password</label>
             <Input
               type="password"
               placeholder="••••••••"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               disabled={loading}
+              className="font-body border-taxentia-slate focus:ring-2 focus:ring-taxentia-sky focus:border-taxentia-sky"
             />
           </div>
 
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button
+            type="submit"
+            className="w-full bg-taxentia-sky hover:bg-taxentia-sky-light text-white font-heading font-semibold py-6 text-base shadow-md transition-colors"
+            disabled={loading}
+          >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Create Account
           </Button>
 
-          <div className="text-center text-sm">
-            <span className="text-gray-600">Already have an account? </span>
+          <div className="text-center text-sm pt-2">
+            <span className="font-body text-taxentia-text-slate">Already have an account? </span>
             <button
               type="button"
               onClick={onSwitchToLogin}
-              className="text-blue-600 hover:underline font-medium"
+              className="font-body text-taxentia-sky hover:text-taxentia-navy hover:underline font-semibold"
             >
               Sign in
             </button>

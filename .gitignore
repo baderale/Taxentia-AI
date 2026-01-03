@@ -5,3 +5,8 @@ server/public
 vite.config.ts.*
 *.tar.gz
 .env
+
+# Playwright test artifacts
+playwright-report/
+test-results/
+playwright/.cache/

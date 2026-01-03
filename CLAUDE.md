@@ -139,3 +139,93 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 - **External Services**: Qdrant (self-hosted vector DB in Docker) + OpenAI (external SaaS for embeddings and LLM)
 - **Monitoring**: Health checks, logging, metrics collection, LLM response times
 - **Security**: Secrets management, VPC isolation, compliance (SOC2/GDPR)
+
+## High-Converting SaaS Landing Page Anatomy
+
+Reference structure for implementing marketing/conversion-focused landing pages:
+
+### Page Sections (Top-to-Bottom)
+
+1. **Navbar**
+   - Logo/brand identity
+   - Navigation menu (Features, Pricing, About, Docs)
+   - CTA button (Sign Up / Get Started)
+   - Sticky positioning for visibility throughout scroll
+
+2. **Hero Area**
+   - Compelling headline (value proposition)
+   - Subheading explaining main benefit
+   - Hero CTA button (primary action)
+   - Visual element (screenshot, demo, illustration)
+   - Establishes immediate value and inspires action
+
+3. **Partners/Social Proof Section**
+   - Logos of recognized companies using the service
+   - Builds credibility and trust
+   - Typically 5-10 partner logos in a row
+   - Reinforces market validation
+
+4. **Benefits Section**
+   - 3-6 benefit cards highlighting key advantages
+   - Focus on user benefits, not technical features
+   - Use icons for visual appeal
+   - Clear, concise copy for each benefit
+   - Explains what problems the product solves
+
+5. **"How It Works?" Section**
+   - Step-by-step process explanation (typically 3-5 steps)
+   - Visual indicators (numbers, arrows, progression)
+   - Simplifies the user journey
+   - Reduces perceived complexity for prospects
+
+6. **Pricing Section**
+   - Multiple pricing tiers for different customer segments
+   - Highlight recommended/popular tier (e.g., "Most Popular")
+   - Include feature comparison per tier
+   - Transparent pricing builds trust
+   - CTA buttons for each tier
+   - Optional: annual/monthly toggle with discount incentive
+
+7. **Testimonials Section**
+   - "Loved by people worldwide" or similar heading
+   - 3-5 customer testimonial cards
+   - Include customer photo, name, company, role
+   - Specific, quantifiable results when possible
+   - Social proof from real users increases conversion
+
+8. **FAQ Section**
+   - Addresses common objections and questions
+   - 5-8 commonly asked questions
+   - Expandable accordion format for UX
+   - Reduces support burden and friction
+
+9. **Final CTA Section**
+   - Reinforces main value proposition
+   - Clear, high-contrast CTA button
+   - Creates sense of urgency (if applicable)
+   - Last conversion opportunity before footer
+
+10. **Footer**
+    - Links to important pages (Privacy, Terms, Blog, Docs)
+    - Contact information
+    - Social media links
+    - Copyright notice
+    - Helps with SEO and provides navigation alternative
+
+### Conversion Optimization Principles
+
+- **Progressive Disclosure**: Start general (hero), get specific (benefits, pricing)
+- **Multiple CTAs**: Place conversion buttons at strategic points throughout page
+- **Visual Hierarchy**: Use size, color, whitespace to guide attention
+- **Trust Signals**: Logos, testimonials, security badges build credibility
+- **Specificity**: Concrete benefits outperform vague claims
+- **Friction Reduction**: Simple forms, clear next steps, no confusion
+- **Mobile Responsiveness**: Optimize for mobile (majority of traffic)
+- **Page Speed**: Fast loading times improve conversions and SEO
+
+### Implementation Notes for Taxentia
+- Apply this structure when designing tax consultation landing page
+- Replace generic SaaS benefits with tax-specific advantages (accuracy, compliance, authority coverage)
+- Use case studies with accountants/tax professionals as testimonials
+- Highlight unique RAG capabilities and authority-backed analysis
+- Consider regulatory/compliance messaging in CTAs

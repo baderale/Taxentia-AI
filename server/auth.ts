@@ -2,10 +2,8 @@ import passport from 'passport';
 import { Strategy as LocalStrategy } from 'passport-local';
 import bcrypt from 'bcryptjs';
 import session from 'express-session';
-import pgSession from 'connect-pg-simple';
-import { db, pool } from './db';
-import { users } from '@shared/schema';
-import { eq } from 'drizzle-orm';
+import createMemoryStore from 'memorystore';
+import { storage } from './storage';
 
 /**
  * Configure Passport.js local strategy
@@ -19,9 +17,8 @@ passport.use(
     },
     async (email, password, done) => {
       try {
-        // Find user by email
-        const result = await db.select().from(users).where(eq(users.email, email));
-        const user = result[0];
+        // Find user by email using in-memory storage
+        const user = await storage.getUserByEmail?.(email);
 
         if (!user) {
           return done(null, false, { message: 'User not found' });
@@ -51,12 +48,11 @@ passport.serializeUser((user: any, done) => {
 
 /**
  * Deserialize user from session
- * Retrieves full user object from database
+ * Retrieves full user object from in-memory storage
  */
 passport.deserializeUser(async (id: string, done) => {
   try {
-    const result = await db.select().from(users).where(eq(users.id, id));
-    const user = result[0];
+    const user = await storage.getUser(id);
     done(null, user || null);
   } catch (err) {
     done(err);
@@ -65,14 +61,14 @@ passport.deserializeUser(async (id: string, done) => {
 
 /**
  * Configure session middleware
- * Uses PostgreSQL for persistent session storage
+ * Uses memory store for development/testing session storage
+ * TODO: Switch to PostgreSQL for production deployment
  */
-const PgSession = pgSession(session);
+const MemoryStore = createMemoryStore(session);
 
 export const sessionMiddleware = session({
-  store: new PgSession({
-    pool: pool,
-    tableName: 'user_sessions',
+  store: new MemoryStore({
+    checkPeriod: 86400000, // prune expired entries every 24h
   }),
   secret: process.env.SESSION_SECRET || 'dev-secret-change-in-production',
   resave: false,

@@ -31,40 +31,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }).parse(req.body);
 
       // Check if user already exists
-      const existingEmail = await db.select().from(users).where(eq(users.email, email));
-      if (existingEmail.length > 0) {
+      const existingEmail = await storage.getUserByEmail?.(email);
+      if (existingEmail) {
         return res.status(400).json({ message: "Email already in use" });
       }
 
-      const existingUsername = await db.select().from(users).where(eq(users.username, username));
-      if (existingUsername.length > 0) {
+      const existingUsername = await storage.getUserByUsername(username);
+      if (existingUsername) {
         return res.status(400).json({ message: "Username already taken" });
       }
 
       // Hash password
       const passwordHash = await hashPassword(password);
 
-      // Create user
-      const newUser = await db
-        .insert(users)
-        .values({
-          email,
-          username,
-          passwordHash,
-          fullName: fullName || null,
-        })
-        .returning();
+      // Create user using in-memory storage
+      const newUser = await storage.createUser({
+        email,
+        username,
+        passwordHash,
+        fullName: fullName || undefined,
+      });
 
       // Automatically log in after signup
-      req.login(newUser[0], (err) => {
+      req.login(newUser, (err) => {
         if (err) return res.status(500).json({ message: err.message });
         res.status(201).json({
           success: true,
           user: {
-            id: newUser[0].id,
-            email: newUser[0].email,
-            username: newUser[0].username,
-            fullName: newUser[0].fullName,
+            id: newUser.id,
+            email: newUser.email,
+            username: newUser.username,
+            fullName: newUser.fullName,
           },
         });
       });
