@@ -7,6 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Specialized AI Review Agents (2025-01-03)
+
+#### Agent System Architecture
+- **Claude Agent SDK Integration**
+  - Installed `@anthropic-ai/claude-agent-sdk` for custom agent creation
+  - Created `.claude/agents/` directory for agent configuration files
+  - Configured three specialized agents using Claude Opus 4.5 model
+  - Implemented TypeScript agent runner (`agents/run-agent.ts`)
+
+#### IRS/Tax Consultant Agent
+- **Tax Compliance Review Agent** (`irs-tax-consultant`)
+  - Expert tax compliance specialist for reviewing code changes
+  - Verifies tax calculation accuracy against IRC/CFR provisions
+  - Validates authority references (IRC sections, CFR citations, IRS rulings)
+  - Identifies compliance risks and legal issues
+  - Ensures proper disclaimers and scope assumptions
+  - Triggers on changes to `server/services/` and `shared/taxResponseSchema.ts`
+
+#### UI/UX Reviewer Agent
+- **Professional Design & Accessibility Agent** (`ui-ux-reviewer`)
+  - Senior UI/UX designer with accessibility expertise
+  - Integrates with Playwright MCP server for real browser testing
+  - Verifies WCAG 2.1 AA accessibility compliance
+  - Tests responsive design across breakpoints (375px, 768px, 1440px)
+  - Analyzes color contrast ratios (4.5:1 for text, 3:1 for UI components)
+  - Tests keyboard navigation and screen reader support
+  - Triggers on changes to `client/` React components
+
+#### Backend Developer Expert Agent
+- **Code Quality & Security Agent** (`backend-developer`)
+  - Senior backend engineer for functionality and security review
+  - Reviews code correctness, performance, and maintainability
+  - Identifies security vulnerabilities (SQL injection, XSS, auth bypass)
+  - Checks database query efficiency (N+1 queries, indexing)
+  - Validates API design and error handling
+  - Reviews integration with external services (OpenAI, Qdrant)
+  - Triggers on changes to `server/` TypeScript files
+
+#### Automation & Hooks
+- **Automatic Agent Triggering**
+  - Created `.claude/hooks/auto-agent-trigger.bat` for Windows environments
+  - Configured PostToolUse hooks in `.claude/settings.json`
+  - Monitors Edit/Write operations on files
+  - Recommends appropriate agent based on file patterns
+  - Non-blocking notifications (doesn't interrupt workflow)
+
+#### Agent Runner CLI
+- **Command-Line Interface**
+  - Single unified runner script: `agents/run-agent.ts`
+  - Usage: `npx tsx agents/run-agent.ts [tax|ui|backend|all] [target]`
+  - Supports running individual agents or all agents in sequence
+  - Color-coded terminal output for better readability
+  - Automatic detection of changed files via git
+  - Structured output with severity levels (Critical, High, Medium, Low)
+
+#### Documentation
+- **Comprehensive Agent Documentation**
+  - Added "Specialized Review Agents" section to CLAUDE.md
+  - Documented each agent's responsibilities and usage
+  - Included integration with development workflow
+  - Added best practices and extension guide
+  - Provided command-line examples for all use cases
+
 ### Added - Railway Production Deployment & Automated Updates (2025-11-03)
 
 ####  Persistent Storage & Data Management

@@ -2,7 +2,8 @@ import passport from 'passport';
 import { Strategy as LocalStrategy } from 'passport-local';
 import bcrypt from 'bcryptjs';
 import session from 'express-session';
-import createMemoryStore from 'memorystore';
+import connectPgSimple from 'connect-pg-simple';
+import { pool } from './db';
 import { storage } from './storage';
 
 /**
@@ -61,14 +62,15 @@ passport.deserializeUser(async (id: string, done) => {
 
 /**
  * Configure session middleware
- * Uses memory store for development/testing session storage
- * TODO: Switch to PostgreSQL for production deployment
+ * Uses PostgreSQL for persistent session storage across server restarts
  */
-const MemoryStore = createMemoryStore(session);
+const PgSession = connectPgSimple(session);
 
 export const sessionMiddleware = session({
-  store: new MemoryStore({
-    checkPeriod: 86400000, // prune expired entries every 24h
+  store: new PgSession({
+    pool: pool,
+    tableName: 'user_sessions',
+    createTableIfMissing: false, // Managed by Drizzle migrations
   }),
   secret: process.env.SESSION_SECRET || 'dev-secret-change-in-production',
   resave: false,

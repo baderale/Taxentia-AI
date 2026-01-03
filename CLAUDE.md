@@ -121,6 +121,181 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 - `chore`: Build process, dependencies, configs
 - `test`: Adding or updating tests
 
+## Specialized Review Agents
+
+This project includes three specialized AI agents that automatically review code changes for quality, compliance, and best practices. These agents use the Claude Agent SDK and run via hooks or manual commands.
+
+### Available Agents
+
+#### 1. IRS/Tax Consultant Agent (`irs-tax-consultant`)
+Expert tax compliance specialist that reviews code for regulatory accuracy and tax law compliance.
+
+**Responsibilities:**
+- Verify tax calculation accuracy against IRC/CFR provisions
+- Validate authority references (IRC sections, CFR citations, IRS rulings)
+- Identify compliance risks and legal issues
+- Check confidence scoring logic
+- Ensure proper disclaimers and scope assumptions
+
+**When it triggers:**
+- Changes to `server/services/` files (especially tax calculation logic)
+- Modifications to `shared/taxResponseSchema.ts`
+- Updates to authority retrieval or ranking logic
+
+**Manual usage:**
+```bash
+npx tsx agents/run-agent.ts tax server/services/hybrid-llm-service.ts
+npx tsx agents/run-agent.ts tax .  # Review all recent changes
+```
+
+#### 2. UI/UX Reviewer Agent (`ui-ux-reviewer`)
+Professional UI/UX designer that analyzes pages for design quality, usability, and accessibility.
+
+**Responsibilities:**
+- Test visual design consistency and brand alignment
+- Verify WCAG 2.1 AA accessibility compliance
+- Check responsive design across breakpoints (mobile, tablet, desktop)
+- Test keyboard navigation and screen reader support
+- Analyze color contrast ratios (4.5:1 for text, 3:1 for UI components)
+- Use Playwright for real browser testing
+
+**When it triggers:**
+- Changes to `client/` React components (.tsx, .jsx files)
+- Updates to landing pages or user-facing interfaces
+
+**Manual usage:**
+```bash
+npx tsx agents/run-agent.ts ui http://localhost:5173
+npx tsx agents/run-agent.ts ui http://localhost:5173/query
+```
+
+#### 3. Backend Developer Expert Agent (`backend-developer`)
+Senior backend engineer that reviews server code for functionality, performance, and security.
+
+**Responsibilities:**
+- Review code correctness and functionality
+- Identify performance bottlenecks (N+1 queries, blocking operations)
+- Verify database queries and ORM usage (Drizzle)
+- Check security (SQL injection, XSS, authentication, secret exposure)
+- Validate API design and error handling
+- Review async/await patterns and error handling
+- Test integration with external services (OpenAI, Qdrant)
+
+**When it triggers:**
+- Changes to `server/` files (.ts, .js)
+- Updates to routes, services, or storage layers
+- Database schema modifications
+
+**Manual usage:**
+```bash
+npx tsx agents/run-agent.ts backend server/services/hybrid-llm-service.ts
+npx tsx agents/run-agent.ts backend server/routes.ts
+```
+
+### Running All Agents
+
+To run all three agents in sequence for comprehensive review:
+
+```bash
+npx tsx agents/run-agent.ts all
+```
+
+This will:
+1. Run tax compliance review on recent backend changes
+2. Run UI/UX review on http://localhost:5173
+3. Run backend code review on all server files
+
+### Automatic Agent Triggering (Hooks)
+
+Agents are configured to run automatically via hooks when you edit files. The hook configuration in `.claude/settings.json` monitors `Edit` and `Write` operations and suggests running the appropriate agent based on file patterns:
+
+**Hook behavior:**
+- Informational notifications (doesn't block your workflow)
+- Recommends which agent to run based on the file changed
+- Provides the exact command to run the review
+
+**Example hook output:**
+```
+[Hook] Tax compliance review recommended for: server/services/hybrid-llm-service.ts
+[Hook] Run: npx tsx agents/run-agent.ts tax "server/services/hybrid-llm-service.ts"
+```
+
+### Agent Configuration
+
+Agent definitions are stored in `.claude/agents/`:
+- `irs-tax-consultant.json` - Tax compliance agent configuration
+- `ui-ux-reviewer.json` - UI/UX review agent configuration
+- `backend-developer.json` - Backend code review agent configuration
+
+Each agent:
+- Uses Claude Opus 4.5 for highest quality reviews
+- Has specialized system prompts for domain expertise
+- Includes specific review checklists and criteria
+- Can read, edit, and run commands in the codebase
+- Integrates with MCP servers (Playwright for UI testing)
+
+### Agent Output Format
+
+All agents provide structured findings:
+
+1. **Critical Issues** - Security vulnerabilities, compliance violations, accessibility blockers
+2. **High Priority** - Functionality bugs, performance problems
+3. **Medium Priority** - Code quality, maintainability
+4. **Low Priority** - Minor optimizations, style improvements
+
+Each finding includes:
+- Category (Security, Performance, Accessibility, Compliance, etc.)
+- Severity level
+- File path and line numbers (when applicable)
+- Specific description with examples
+- Recommended fix with code snippets
+- Testing strategy to verify the fix
+
+### Best Practices
+
+1. **Run agents before committing**: Use `npx tsx agents/run-agent.ts all` to catch issues early
+2. **Review agent findings carefully**: Agents provide expert recommendations but you make final decisions
+3. **Focus on Critical/High issues first**: Prioritize security and compliance
+4. **Use agents iteratively**: Run after making fixes to verify improvements
+5. **Customize agent prompts**: Edit `.claude/agents/*.json` to adjust review criteria for your needs
+
+### Integration with Development Workflow
+
+```bash
+# Standard development workflow with agents:
+
+# 1. Make code changes
+vim server/services/hybrid-llm-service.ts
+
+# 2. Run relevant agent review
+npx tsx agents/run-agent.ts tax server/services/hybrid-llm-service.ts
+
+# 3. Fix any issues found
+# ... make corrections ...
+
+# 4. Run tests
+npm test
+
+# 5. Run full agent suite before committing
+npx tsx agents/run-agent.ts all
+
+# 6. Commit changes
+git add .
+git commit -m "feat: improve tax calculation logic with IRC §162 compliance"
+```
+
+### Extending the Agent System
+
+To create additional specialized agents:
+
+1. Create agent definition in `.claude/agents/your-agent.json`
+2. Define system prompt with expertise and review criteria
+3. Add agent runner function in `agents/run-agent.ts`
+4. Update hook configuration in `.claude/hooks/auto-agent-trigger.bat` (optional)
+5. Document the new agent in this section
+
+See the Claude Agent SDK documentation for advanced customization options.
+
 ## Deployment Strategy
 
 ### Development Workflow: Local → Docker → AWS

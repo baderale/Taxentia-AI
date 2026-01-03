@@ -1,0 +1,33 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cmd /c D:\\Taxentia-AI\\.claude\\hooks\\auto-agent-trigger.bat \"$TOOL_NAME\" \"$TOOL_INPUT_file_path\""
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(npm test)",
+      "Bash(npm install:*)",
+      "Bash(npx tsx:*)",
+      "Bash(git:*)"
+    ],
+    "defaultMode": "acceptEdits"
+  },
+  "mcpServers": {
+    "playwright": {
+      "enabled": true
+    },
+    "aws-ccapi-mcp": {
+      "enabled": true
+    }
+  }
+}

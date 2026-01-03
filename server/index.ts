@@ -1,10 +1,12 @@
 import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
-import { storage } from "./storage";
+import { PostgresStorage } from "./storage";
 import { setupVite, serveStatic, log } from "./vite";
 import passport from "passport";
 import { sessionMiddleware } from "./auth";
+
+const storage = new PostgresStorage();
 
 const app = express();
 app.use(express.json());

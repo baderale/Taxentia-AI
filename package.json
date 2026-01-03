@@ -34,6 +34,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.1.76",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
     "@neondatabase/serverless": "^0.10.4",
@@ -134,6 +135,7 @@
     "drizzle-kit": "^0.30.4",
     "esbuild": "^0.25.0",
     "jsdom": "^27.0.1",
+    "playwright": "^1.57.0",
     "postcss": "^8.4.47",
     "rimraf": "^6.0.1",
     "tailwindcss": "^3.4.17",
