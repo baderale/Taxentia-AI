@@ -772,7 +772,7 @@ Special thanks to the open-source community and tax professionals who provided i
 
 **Built with ❤️ for Tax Professionals**
 
-[🌐 GitHub](https://github.com/baderale/Taxentia-AI) • [📧 Support](mailto:bader@eale.it) • [📖 Docs](docs/)
+[🌐 GitHub](https://github.com/baderale/Taxentia-AI) • [📖 Docs](docs/)
 
 **Ready to revolutionize your tax research?** [Get started](#quick-start) today.
 
