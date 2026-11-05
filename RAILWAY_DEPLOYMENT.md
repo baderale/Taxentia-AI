@@ -3,31 +3,47 @@
 ## Current Deployment (November 5, 2026)
 
 **Done**
-- Railway project `taxentia` on the Hobby plan, with `taxentia`, `qdrant` and `Postgres` services
+- Railway project `taxentia` on the Hobby plan, with `taxentia`, `qdrant`, `Postgres` and `taxentia-cron-irb` services
 - Database tables created
 - `www.taxentia.ai` connected through a GoDaddy CNAME, with a valid certificate
 - `taxentia.ai` forwarded to `https://www.taxentia.ai` with a GoDaddy 301
-- `SESSION_SECRET` and `ADMIN_SECRET` set
+- `SESSION_SECRET`, `ADMIN_SECRET` and the OpenRouter key set
+- Treasury Regulations and IRS Bulletins loaded
+- Admin routes locked behind `ADMIN_SECRET`, and saved queries limited to their owner
+- Weekly IRS bulletin job set up: `npm run ingest:irb -- 5`, Mondays at 08:00 UTC, no automatic restart
 
 **Still open**
-- Set `OPENAI_API_KEY` to an OpenRouter key on the `taxentia` service, with credit on the account
-- Load the tax data with `npm run ingest:all`, then confirm whether the CFR fetcher works
-- Create the weekly IRS bulletin job. `railway.cron.json` has no schedule, and the service does not exist yet
+- The Internal Revenue Code load is still running inside the app container. It requests sections 1-9834 from Cornell LII at one every 10 seconds, so it can take about 27 hours. 404s on section numbers that don't exist are normal.
 - Test sign-up and a real tax question on both addresses
+- Deploy the redesigned interface, which is on the branch but not live yet. Deploy only after the Code load finishes, because a redeploy stops it and it would have to start over.
+- Confirm the weekly job's first scheduled run
+- Set a monthly spending limit on the OpenRouter key
 
 **OpenRouter settings on the `taxentia` service**
 ```bash
 OPENAI_BASE_URL=https://openrouter.ai/api/v1
 OPENAI_MODEL_NAME=openai/gpt-4o-mini
 OPENAI_EMBEDDING_MODEL=openai/text-embedding-3-small
+EMBEDDING_PROVIDER_IGNORE=openai
 ```
+
+`EMBEDDING_PROVIDER_IGNORE` is a comma-separated list of OpenRouter providers to skip for embeddings. It is set to `openai` because OpenRouter was sending embedding requests through an outdated OpenAI key saved on the account, which returned 401 errors. With OpenAI skipped, requests route to Azure and still return 1536-dimension vectors.
+
+**Costs measured or estimated on November 5, 2026**
+- Railway: estimated $10-16 a month
+- Treasury Regulations: 6,015 regulations, 20,016 chunks, about $0.16
+- IRS Bulletins: 26 documents, 1,851 chunks, about $0.02
+- Each answer: estimated $0.0015
 
 **Things to know**
 - This project ignored `railway.json`. The start command and health check are set directly on the service, so changing the file has no effect here.
 - `railway redeploy` reuses the previous deployment's settings. Use `railway up` after changing them.
 - Railway is not connected to GitHub. Pushing to GitHub does not deploy; run `railway up --service taxentia`.
 - Postgres has no public proxy. Schema changes must run inside Railway's private network. To apply one, temporarily set the start command to `npx drizzle-kit push && npm run start`, run `railway up`, then set it back to `npm run start`.
-- Always set `ADMIN_SECRET`. If it is missing, the admin ingest endpoint accepts requests that send no secret.
+- Set `ADMIN_SECRET`. If it is missing, the admin routes reject every request, including ingestion.
+- The Qdrant image must be v1.15.5 or close to it. v1.13.6 didn't work with the app's client version.
+- Keys added in the Railway dashboard stay staged until the change is deployed. Check that they were applied.
+- curl can return an HTTP/2 protocol error against the Railway URL. Add `--http1.1` when testing routes.
 - Always set `SESSION_SECRET`. If it is missing, the app falls back to a publicly known default.
 - GoDaddy cannot point the root domain directly at Railway, so the root domain forwards to `www`.
 

@@ -65,6 +65,8 @@ The system generates structured tax analysis with:
 - `QDRANT_COLLECTION_NAME`: Target collection name (defaults to "taxentia-authorities")
 - `OPENAI_BASE_URL`: Optional OpenAI-compatible endpoint (production uses OpenRouter)
 - `OPENAI_EMBEDDING_MODEL`: Embedding model (defaults to "text-embedding-3-small")
+- `EMBEDDING_PROVIDER_IGNORE`: Optional comma-separated OpenRouter providers to skip for embeddings
+- `ADMIN_SECRET`: Required for admin routes, which reject every request when it is unset
 - `DATABASE_URL`: PostgreSQL connection string
 
 ### Key Implementation Details
@@ -86,6 +88,16 @@ The system generates structured tax analysis with:
 - Shared types ensure consistency between client/server
 - Data ingestion scripts fetch, chunk, and embed tax authorities into Qdrant vectors
 - Qdrant runs in Docker via docker-compose for local development
+
+## Interface Design
+
+- **Fonts:** Newsreader for headings, IBM Plex Sans for the interface, IBM Plex Mono for citations and labels
+- **Colors:** defined in `client/src/index.css` as RGB channels and mapped in `tailwind.config.ts`, so opacity modifiers such as `bg-gold/10` work. Use tokens such as `ink`, `primary`, `gold`, `gold-deep`, `good`, `warn` and `bad` rather than raw hex values. On light backgrounds, use `gold-deep` for gold text
+- **Shared pieces:** `.cite` for citation chips, `.eyebrow` for small labels, `.ruled` for dark ruled panels, `Logo` in `components/brand.tsx`, and confidence, link and time helpers in `lib/research.ts`
+- **Confidence bands:** high is 85-100, medium is 60-84, low is 0-59. Use the saved `confidenceColor`, and always pair color with a label or icon
+- **Phones:** keep tap targets at 32px or more, main actions 44px where possible, and no sideways page scrolling. History opens as a drawer below 768px
+- **Real content only:** no invented testimonials, user counts, metrics or plans. Every number shown must come from real data, and every control must work. Sample answers must be labeled as samples and be legally accurate
+- **Model output:** pass links through `safeHref` before rendering them
 
 ## Development Workflow Guidelines
 

@@ -193,6 +193,11 @@ npm run ingest:test         # Quick test (2 bulletins)
 npm run inspect:qdrant      # View ingested data statistics
 ```
 
+**Current Deployment (November 5, 2026):**
+- CFR Title 26: ✅ Loaded (6,015 regulations → 20,016 chunks). The fetcher problem listed below is fixed
+- IRS Bulletins: ✅ Loaded (26 documents → 1,851 chunks)
+- USC Title 26: ⏳ Loading from Cornell LII, one section number every 10 seconds
+
 **Last Recorded Ingestion Status (Nov 2025 deployment, not the current one):**
 - USC Title 26: ✅ Complete (1,612 sections → 3,730 chunks)
 - IRS Bulletins: ✅ 10 recent bulletins (27 documents → 409 chunks)
@@ -572,7 +577,7 @@ open http://localhost:6333/dashboard
 
 ### **Current Production Architecture (Railway)**
 
-**Status (November 5, 2026):** Redeployed on Railway. The site is up at https://www.taxentia.ai, and `taxentia.ai` forwards to it. Tax questions are **not working yet** because `OPENAI_API_KEY` is not set and the tax data has not been loaded. The original November 2025 deployment is no longer active.
+**Status (November 5, 2026):** Redeployed on Railway. The site is up at https://www.taxentia.ai, and `taxentia.ai` forwards to it. The OpenRouter key is active, and the Treasury Regulations and IRS Bulletins are loaded. The Internal Revenue Code is still loading. A real tax question has **not been tested end to end yet**. The redesigned interface is on this branch but not deployed. The original November 2025 deployment is no longer active.
 
 ```
 Railway project: taxentia (Hobby plan)
@@ -580,6 +585,9 @@ Railway project: taxentia (Hobby plan)
 │   ├── Health check: /api/health
 │   ├── URL: https://www.taxentia.ai
 │   └── Railway URL: https://taxentia-production.up.railway.app
+│
+├── taxentia-cron-irb (weekly IRS bulletin job)
+│   └── Mondays at 08:00 UTC: npm run ingest:irb -- 5
 │
 ├── qdrant (qdrant/qdrant:v1.15.5)
 │   ├── Volume: /qdrant/storage
@@ -594,9 +602,13 @@ LLM calls go through OpenRouter, using `openai/gpt-4o-mini` for answers and `ope
 
 ### **Automated Data Updates**
 
-- **Weekly IRS Bulletins**: Planned, not yet set up on the current deployment
+- **Weekly IRS Bulletins**: Set up as `taxentia-cron-irb`, Mondays at 08:00 UTC. First scheduled run still to be confirmed
 - **On-Demand**: Via admin API (`POST /api/taxentia/admin/ingest`)
 - **Cost**: ~$0.05-0.10 per weekly update
+
+### **Interface**
+
+The November 2026 redesign covers the landing, sign-in, research, answer and activity screens, on desktop and phones. Design rules for contributors are in [CLAUDE.md](CLAUDE.md#interface-design). It has been tested in a browser with mocked API responses, and still needs a test against a real server.
 
 ### **Development Workflow**
 

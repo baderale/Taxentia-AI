@@ -7,11 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - Interface redesign (2026-11-05)
+- Redesigned the landing, sign-in, research, answer, and activity screens, including phone layouts
+- New visual system: Newsreader, IBM Plex Sans, and IBM Plex Mono, with colors stored as RGB channels so Tailwind opacity modifiers work
+- Answers now read as a memo, with authority beside the analysis on wide screens and citation chips that jump to their source
+- History opens in a drawer on phones, with search and confidence filters
+- Added a working sign-out, a "New research" button, and an elapsed timer while an answer is generated
+
+### Removed - Content that wasn't real (2026-11-05)
+- Invented testimonials, user counts, pricing plans, time-saved figures, and unverifiable privacy claims from the landing page
+- Hardcoded dashboard numbers and fake usage and response-time labels from the app
+- Settings toggles, export, and share controls that did nothing
+- The Replit development banner script from production pages
+
+### Fixed (2026-11-05)
+- History sorting by date, which read a field that doesn't exist
+- Links from model output are limited to http and https addresses
+- Cached history is cleared on sign-out
+
 ### Changed - OpenRouter support (2026-11-05)
 - Embedding model is now configurable with `OPENAI_EMBEDDING_MODEL` (default `text-embedding-3-small`)
 - Production uses OpenRouter through `OPENAI_BASE_URL`, with `openai/gpt-4o-mini` and `openai/text-embedding-3-small`
 - Redeployed to a new Railway project after the original deployment was found inactive
 - Updated README and deployment guide with the current status and open items
+- Added `EMBEDDING_PROVIDER_IGNORE` to skip OpenRouter providers for embeddings
+
+### Security (2026-11-05)
+- `/api/taxentia/embed`, `/api/taxentia/index-irc-batch` and POST `/api/taxentia/irc-last-sync` now require the `x-admin-secret` header
+- `/api/queries/:id` now requires sign-in and only returns the user's own queries
+- The admin ingest endpoint now rejects all requests when `ADMIN_SECRET` is not set
 
 ### Added - Specialized AI Review Agents (2025-01-03)
 
