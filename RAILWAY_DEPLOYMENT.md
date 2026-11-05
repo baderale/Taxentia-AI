@@ -10,10 +10,11 @@
 - Tax data loaded: Internal Revenue Code (1,900 current sections, 7,309 chunks, about $0.06, 14 minutes), Treasury Regulations and IRS Bulletins. Qdrant holds 29,121 vectors
 - Answers now receive each passage labeled with its citation, and are told to cite only those sources
 - Admin routes locked behind `ADMIN_SECRET`, and saved queries limited to their owner
+- A real question answered on the live site, with 5 passages retrieved
 - Weekly IRS bulletin job set up: `npm run ingest:irb -- 5`, Mondays at 08:00 UTC, no automatic restart
 
 **Still open**
-- Test a real tax question end to end with an account on the live site
+- Remove the old database password from Git history. `.claude/settings.local.json` is no longer tracked, but earlier commits still contain it. It belonged to the deleted 2025 project, so it is most likely dead. Removing it needs a history rewrite and a force push
 - Confirm the weekly job's first scheduled run
 - Set a monthly spending limit on the OpenRouter key
 - Qdrant point IDs are 32-bit hashes of chunk IDs, so a few chunks overwrite each other. About 31 of 7,309 Code chunks were lost this way. Switching to UUID-based IDs would fix it, but needs a full reload
@@ -42,7 +43,7 @@ EMBEDDING_PROVIDER_IGNORE=openai
 
 **Managing users**
 - **People sign up themselves** at `https://www.taxentia.ai/auth?mode=signup`
-- **Create or reset a user** at `https://www.taxentia.ai/admin`. The admin key is the `ADMIN_SECRET` variable on the `taxentia` service in Railway. Generated passwords are shown once
+- **Create or reset a user** at `https://www.taxentia.ai/admin`, then use **Go to sign in** to open the sign-in screen. The admin key is the `ADMIN_SECRET` variable on the `taxentia` service in Railway. Generated passwords are shown once
 - **View the tables** in Railway under the `Postgres` service, on the Data tab: `users`, `tax_queries` and `user_sessions`
 - Passwords are stored only as bcrypt hashes, and saved questions and answers are in `tax_queries`
 

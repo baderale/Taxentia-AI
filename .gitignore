@@ -10,3 +10,5 @@ vite.config.ts.*
 playwright-report/
 test-results/
 playwright/.cache/
+# Local Claude Code settings can hold credentials
+.claude/settings.local.json

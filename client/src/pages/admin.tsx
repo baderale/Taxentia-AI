@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Check, Copy, KeyRound, Loader2, UserPlus } from "lucide-react";
+import { ArrowRight, Check, Copy, KeyRound, Loader2, UserPlus } from "lucide-react";
+import { Link } from "wouter";
 import { Logo } from "@/components/brand";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/lib/auth-context";
 import { timeAgo } from "@/lib/research";
 
 interface AdminUser {
@@ -33,6 +35,32 @@ async function adminRequest<T>(key: string, method: string, url: string, body?: 
   return data as T;
 }
 
+/**
+ * Takes you to the sign-in screen. If you're already signed in, the app opens instead,
+ * so to try a new login you sign out from the account menu first.
+ */
+function SignInLink({ variant = "outline" }: { variant?: "outline" | "default" }) {
+  const { isAuthenticated } = useAuth();
+  return (
+    <Button asChild variant={variant} className="h-10">
+      <Link href={isAuthenticated ? "/" : "/auth"} data-testid="link-sign-in">
+        {isAuthenticated ? "Open Taxentia" : "Go to sign in"} <ArrowRight />
+      </Link>
+    </Button>
+  );
+}
+
+function PageHeader() {
+  return (
+    <header className="flex items-center justify-between gap-3">
+      <Link href="/" aria-label="Taxentia home">
+        <Logo />
+      </Link>
+      <SignInLink />
+    </header>
+  );
+}
+
 function CredentialsCard({ credentials, onDone }: { credentials: Credentials; onDone: () => void }) {
   const [copied, setCopied] = useState(false);
   const message = `Your Taxentia login\nSite: ${window.location.origin}/auth\nEmail: ${credentials.email}\nPassword: ${credentials.password}`;
@@ -47,10 +75,11 @@ function CredentialsCard({ credentials, onDone }: { credentials: Credentials; on
       <h2 className="text-xl">{credentials.title}</h2>
       <p className="mt-1 text-sm text-muted-foreground">Copy this now. The password won't be shown again.</p>
       <pre className="mt-3 overflow-x-auto rounded-md bg-muted p-3 font-mono text-[13px] leading-relaxed" data-testid="credentials-text">{message}</pre>
-      <div className="mt-3 flex gap-2">
+      <div className="mt-3 flex flex-wrap gap-2">
         <Button onClick={copy} className="h-10">
           {copied ? <Check /> : <Copy />} {copied ? "Copied" : "Copy login details"}
         </Button>
+        <SignInLink />
         <Button onClick={onDone} variant="ghost" className="h-10">Done</Button>
       </div>
     </div>
@@ -113,7 +142,7 @@ export default function Admin() {
   if (!users) {
     return (
       <main className="mx-auto flex min-h-[100dvh] max-w-sm flex-col justify-center px-5 py-10">
-        <Logo />
+        <PageHeader />
         <h1 className="mt-8 text-4xl tracking-tight">Manage users</h1>
         <p className="mt-2 text-muted-foreground">Enter the admin key to continue.</p>
         {errorAlert}
@@ -143,7 +172,7 @@ export default function Admin() {
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
-      <Logo />
+      <PageHeader />
       <h1 className="mt-8 text-4xl tracking-tight">Manage users</h1>
       {errorAlert}
 

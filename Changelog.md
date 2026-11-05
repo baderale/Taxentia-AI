@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Sign-in links on the admin page (2026-11-05)
+- "Go to sign in" in the admin page header and next to new login details. It opens the app instead when you're already signed in
+
+### Changed - Documentation (2026-11-05)
+- Rewrote the README to match the live system: status, tax library, accounts, setup, API, deployment and known issues
+- Stopped tracking `.claude/settings.local.json`, which held an old database password, and added it to `.gitignore`
+
 ### Fixed - Internal Revenue Code load and citations (2026-11-05)
 - The Code now loads from the official House file in about 14 minutes, including sections with letters such as §199A and §280A. The release is found automatically
 - Removed the Cornell LII fetcher, which skipped those sections and took about 27 hours
