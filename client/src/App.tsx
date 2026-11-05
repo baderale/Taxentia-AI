@@ -8,6 +8,7 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import AuthPage from "@/pages/auth";
 import Landing from "@/pages/landing";
+import Admin from "@/pages/admin";
 import { Loader2 } from "lucide-react";
 
 function Router() {
@@ -24,6 +25,7 @@ function Router() {
   if (!isAuthenticated) {
     return (
       <Switch>
+        <Route path="/admin" component={Admin} />
         <Route path="/auth" component={AuthPage} />
         <Route path="/" component={Landing} />
         <Route component={Landing} />
@@ -33,6 +35,7 @@ function Router() {
 
   return (
     <Switch>
+      <Route path="/admin" component={Admin} />
       <Route path="/" component={Home} />
       <Route component={NotFound} />
     </Switch>

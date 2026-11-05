@@ -14,12 +14,10 @@ test.describe('Authentication Flow - Simple Tests', () => {
     await expect(page).toHaveTitle(/Taxentia/);
 
     // Click Get Started to go to auth page
-    await page.getByRole('button', { name: /get started/i }).first().click();
+    await page.getByRole('link', { name: /get started/i }).first().click();
     await expect(page).toHaveURL(/\/auth/);
 
-    // Switch to signup
-    await page.getByRole('button', { name: /sign up/i }).click();
-
+    // Get Started opens the sign-up form directly
     // Wait for signup form to be visible
     await expect(page.getByText('Create Account').first()).toBeVisible();
 

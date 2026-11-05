@@ -6,7 +6,9 @@ import { Logo } from '@/components/brand';
 import { useAuth } from '@/lib/auth-context';
 
 export default function AuthPage() {
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [mode, setMode] = useState<'login' | 'signup'>(() =>
+    new URLSearchParams(window.location.search).get('mode') === 'signup' ? 'signup' : 'login',
+  );
   const [, setLocation] = useLocation();
   const { isAuthenticated, loading } = useAuth();
 

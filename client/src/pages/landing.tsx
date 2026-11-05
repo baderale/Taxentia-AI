@@ -129,7 +129,7 @@ export default function Landing() {
                 <Link href="/auth">Sign in</Link>
               </Button>
               <Button asChild className="bg-gold text-ink hover:bg-gold/90">
-                <Link href="/auth">Get started</Link>
+                <Link href="/auth?mode=signup">Get started</Link>
               </Button>
             </div>
             <button
@@ -173,7 +173,7 @@ export default function Landing() {
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Button asChild size="lg" className="h-12 bg-gold px-6 text-base text-ink hover:bg-gold/90">
-                <Link href="/auth">
+                <Link href="/auth?mode=signup">
                   Get started <ArrowRight className="ml-1" />
                 </Link>
               </Button>
@@ -301,7 +301,7 @@ export default function Landing() {
             Start with your next tax question.
           </h2>
           <Button asChild size="lg" className="mt-8 h-12 w-full bg-gold px-6 text-base text-ink hover:bg-gold/90 sm:w-auto">
-            <Link href="/auth">
+            <Link href="/auth?mode=signup">
               Get started <ArrowRight className="ml-1" />
             </Link>
           </Button>

@@ -18,8 +18,7 @@ passport.use(
     },
     async (email, password, done) => {
       try {
-        // Find user by email using in-memory storage
-        const user = await storage.getUserByEmail?.(email);
+        const user = await storage.getUserByEmail?.(email.trim().toLowerCase());
 
         if (!user) {
           return done(null, false, { message: 'User not found' });
@@ -49,7 +48,7 @@ passport.serializeUser((user: any, done) => {
 
 /**
  * Deserialize user from session
- * Retrieves full user object from in-memory storage
+ * Retrieves the full user object from the database
  */
 passport.deserializeUser(async (id: string, done) => {
   try {

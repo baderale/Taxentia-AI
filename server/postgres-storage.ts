@@ -1,10 +1,10 @@
-import { type IStorage } from './storage';
+import type { IStorage, UserSummary } from './storage';
 import { db } from './db';
 import { users, taxQueries, authorities, ircSyncStatus } from '@shared/schema';
 import { type User, type InsertUser, type TaxQuery, type InsertTaxQuery,
          type Authority, type InsertAuthority, type IrcSyncStatus,
          type InsertIrcSyncStatus } from '@shared/schema';
-import { eq, desc, inArray } from 'drizzle-orm';
+import { eq, desc, inArray, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 
 export class PostgresStorage implements IStorage {
@@ -58,6 +58,32 @@ export class PostgresStorage implements IStorage {
       }
       throw error;
     }
+  }
+
+  async listUsers(): Promise<UserSummary[]> {
+    const [allUsers, counts] = await Promise.all([
+      db.select().from(users).orderBy(desc(users.createdAt)),
+      db.select({ userId: taxQueries.userId, count: sql<number>`count(*)::int` })
+        .from(taxQueries)
+        .groupBy(taxQueries.userId),
+    ]);
+    const countByUser = new Map(counts.map((row) => [row.userId, row.count]));
+    return allUsers.map((user) => ({
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      fullName: user.fullName,
+      createdAt: user.createdAt,
+      questionCount: countByUser.get(user.id) ?? 0,
+    }));
+  }
+
+  async updateUserPassword(id: string, passwordHash: string): Promise<boolean> {
+    const result = await db.update(users)
+      .set({ passwordHash, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning({ id: users.id });
+    return result.length > 0;
   }
 
   // Tax query methods

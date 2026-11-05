@@ -1,12 +1,10 @@
 import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
-import { PostgresStorage } from "./storage";
+import { storage } from "./storage";
 import { setupVite, serveStatic, log } from "./vite";
 import passport from "passport";
 import { sessionMiddleware } from "./auth";
-
-const storage = new PostgresStorage();
 
 const app = express();
 app.use(express.json());
@@ -37,7 +35,8 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
+      // Admin responses can contain temporary passwords, so never log them
+      if (capturedJsonResponse && !path.startsWith("/api/admin")) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
 

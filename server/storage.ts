@@ -1,6 +1,17 @@
 import { type User, type InsertUser, type TaxQuery, type InsertTaxQuery, type Authority, type InsertAuthority, type IrcSyncStatus, type InsertIrcSyncStatus } from "@shared/schema";
 import { randomUUID } from "crypto";
 import * as cheerio from 'cheerio';
+import { PostgresStorage } from './postgres-storage';
+
+/** A user as shown to an admin. Never includes the password hash. */
+export interface UserSummary {
+  id: string;
+  email: string;
+  username: string;
+  fullName: string | null;
+  createdAt: Date | null;
+  questionCount: number;
+}
 
 export interface IStorage {
   // User methods
@@ -8,6 +19,8 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail?(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  listUsers(): Promise<UserSummary[]>;
+  updateUserPassword(id: string, passwordHash: string): Promise<boolean>;
 
   // Tax query methods
   getTaxQuery(id: string): Promise<TaxQuery | undefined>;
@@ -251,6 +264,24 @@ export class MemStorage implements IStorage {
   }
 
   // Tax query methods
+  async listUsers(): Promise<UserSummary[]> {
+    return Array.from(this.users.values()).map((user) => ({
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      fullName: user.fullName,
+      createdAt: user.createdAt,
+      questionCount: Array.from(this.taxQueries.values()).filter((query) => query.userId === user.id).length,
+    }));
+  }
+
+  async updateUserPassword(id: string, passwordHash: string): Promise<boolean> {
+    const user = this.users.get(id);
+    if (!user) return false;
+    this.users.set(id, { ...user, passwordHash, updatedAt: new Date() });
+    return true;
+  }
+
   async getTaxQuery(id: string): Promise<TaxQuery | undefined> {
     return this.taxQueries.get(id);
   }
@@ -324,7 +355,7 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Accounts, saved questions and answers must survive restarts, so the app always uses Postgres.
+export const storage: IStorage = new PostgresStorage();
 
-// Export PostgresStorage for production use
-export { PostgresStorage } from './postgres-storage';
+export { PostgresStorage };

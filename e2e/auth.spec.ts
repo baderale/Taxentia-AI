@@ -17,13 +17,12 @@ test.describe('Authentication Flow', () => {
     await expect(page).toHaveTitle(/Taxentia/);
 
     // Check for key landing page elements - look for the main hero heading
-    await expect(page.getByRole('heading', { name: /authoritative tax guidance/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /trace to the source/i })).toBeVisible();
   });
 
   test('should navigate to auth page and show login form by default', async ({ page }) => {
-    // Navigate to auth page by clicking Get Started button
-    const getStartedButton = page.getByRole('button', { name: /get started|start free trial/i }).first();
-    await getStartedButton.click();
+    // Navigate to auth page by clicking Sign in
+    await page.getByRole('link', { name: /sign in/i }).first().click();
 
     // Should be on auth page
     await expect(page).toHaveURL(/\/auth/);

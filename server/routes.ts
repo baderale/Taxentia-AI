@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { createHash, randomBytes, timingSafeEqual } from "crypto";
 import { storage } from "./storage";
 import { z } from "zod";
 import { taxResponseSchema, insertTaxQuerySchema, type Authority, users } from "@shared/schema";
@@ -9,12 +10,52 @@ import { qdrantService } from "./services/qdrant-service";
 import passport from "passport";
 import { hashPassword, requireAuth } from "./auth";
 
+const ADMIN_MAX_FAILURES = 10;
+const ADMIN_LOCKOUT_MS = 15 * 60 * 1000;
+const adminFailures = new Map<string, { count: number; resetAt: number }>();
+
+function secretMatches(given: unknown, expected: string): boolean {
+  if (typeof given !== "string") return false;
+  const a = createHash("sha256").update(given).digest();
+  const b = createHash("sha256").update(expected).digest();
+  return timingSafeEqual(a, b);
+}
+
 function requireAdminSecret(req: any, res: any, next: any) {
+  const ip = req.ip ?? "unknown";
+  const now = Date.now();
+  const failures = adminFailures.get(ip);
+  if (failures && failures.resetAt > now && failures.count >= ADMIN_MAX_FAILURES) {
+    return res.status(429).json({ message: "Too many attempts. Try again in 15 minutes." });
+  }
+
   const expected = process.env.ADMIN_SECRET;
-  if (!expected || req.get("x-admin-secret") !== expected) {
+  if (!expected || !secretMatches(req.get("x-admin-secret"), expected)) {
+    const active = failures && failures.resetAt > now;
+    adminFailures.set(ip, {
+      count: active ? failures.count + 1 : 1,
+      resetAt: active ? failures.resetAt : now + ADMIN_LOCKOUT_MS,
+    });
     return res.status(401).json({ message: "Unauthorized" });
   }
+
+  adminFailures.delete(ip);
   next();
+}
+
+function generatePassword(): string {
+  return randomBytes(12).toString("base64url");
+}
+
+/** Builds a valid, unused username from an email address. */
+async function generateUsername(email: string): Promise<string> {
+  const base = email.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "").slice(0, 40).toLowerCase() || "user";
+  const start = base.length >= 3 ? base : `user_${base}`;
+  let candidate = start;
+  while (await storage.getUserByUsername(candidate)) {
+    candidate = `${start}_${randomBytes(2).toString("hex")}`;
+  }
+  return candidate;
 }
 import { db } from "./db";
 import { eq } from "drizzle-orm";
@@ -32,7 +73,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/auth/register", async (req, res) => {
     try {
       const { email, password, username, fullName } = z.object({
-        email: z.string().email("Invalid email address"),
+        email: z.string().trim().toLowerCase().email("Invalid email address"),
         password: z.string().min(8, "Password must be at least 8 characters"),
         username: z.string().min(3, "Username must be at least 3 characters").max(50),
         fullName: z.string().optional(),
@@ -52,7 +93,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Hash password
       const passwordHash = await hashPassword(password);
 
-      // Create user using in-memory storage
       const newUser = await storage.createUser({
         email,
         username,
@@ -145,6 +185,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================
+  // ADMIN USER MANAGEMENT
+  // ============================================
+
+  app.get("/api/admin/users", requireAdminSecret, async (_req, res) => {
+    try {
+      res.json(await storage.listUsers());
+    } catch (error) {
+      console.error("List users error:", error);
+      res.status(500).json({ message: "Could not load users" });
+    }
+  });
+
+  app.post("/api/admin/users", requireAdminSecret, async (req, res) => {
+    try {
+      const { email, fullName, password } = z.object({
+        email: z.string().trim().toLowerCase().email("Enter a valid email address"),
+        fullName: z.string().trim().max(120).optional(),
+        password: z.string().min(8, "Password must be at least 8 characters").optional(),
+      }).parse(req.body);
+
+      if (await storage.getUserByEmail?.(email)) {
+        return res.status(400).json({ message: "Email already in use" });
+      }
+
+      const finalPassword = password ?? generatePassword();
+      const user = await storage.createUser({
+        email,
+        username: await generateUsername(email),
+        passwordHash: await hashPassword(finalPassword),
+        fullName: fullName || undefined,
+      });
+
+      res.status(201).json({
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        fullName: user.fullName,
+        // Shown once so it can be passed on. Only the hash is stored.
+        temporaryPassword: password ? undefined : finalPassword,
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      console.error("Create user error:", error);
+      res.status(500).json({ message: "Could not create the user" });
+    }
+  });
+
+  app.post("/api/admin/users/:id/reset-password", requireAdminSecret, async (req, res) => {
+    try {
+      const temporaryPassword = generatePassword();
+      const updated = await storage.updateUserPassword(req.params.id, await hashPassword(temporaryPassword));
+      if (!updated) return res.status(404).json({ message: "User not found" });
+      res.json({ temporaryPassword });
+    } catch (error) {
+      console.error("Reset password error:", error);
+      res.status(500).json({ message: "Could not reset the password" });
+    }
+  });
+
+  // ============================================
   // TAX QUERY ROUTES
   // ============================================
 
@@ -179,7 +281,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         query,
         response: validatedResponse,
-        confidence: validatedResponse.confidence.score,
+        confidence: Math.round(validatedResponse.confidence.score), // Integer column
         confidenceColor: validatedResponse.confidence.color,
       });
 
