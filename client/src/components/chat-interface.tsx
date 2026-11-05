@@ -1,257 +1,183 @@
-import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { Send, Gavel, Lightbulb, Home, Building, Calculator, Sparkles, TrendingUp, Clock, BookOpen } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ArrowUp, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import ResponseDisplay from "../components/response-display";
-import type { TaxQuery, TaxResponse } from "@shared/schema";
+import ResponseDisplay from "@/components/response-display";
+import type { TaxQuery } from "@shared/schema";
 
 interface ChatInterfaceProps {
-  selectedQuery: string | null;
-  onCitationsToggle: () => void;
   currentResponse: TaxQuery | null;
   setCurrentResponse: (response: TaxQuery | null) => void;
 }
 
-export default function ChatInterface({ selectedQuery, onCitationsToggle, currentResponse, setCurrentResponse }: ChatInterfaceProps) {
+const EXAMPLES = [
+  { title: "Startup costs", query: "When can startup costs be deducted vs. amortized under IRC §195?" },
+  { title: "Home office", query: "What are the requirements for claiming the home office deduction under IRC §280A?" },
+  { title: "S corporation election", query: "What are the timing requirements for filing Form 2553 to elect S corporation status?" },
+  { title: "QBI deduction", query: "What are the requirements for the qualified business income deduction under IRC §199A?" },
+];
+
+/** Counts real seconds while a question is being answered. */
+function useElapsedSeconds(active: boolean) {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    setSeconds(0);
+    const timer = setInterval(() => setSeconds((value) => value + 1), 1000);
+    return () => clearInterval(timer);
+  }, [active]);
+  return seconds;
+}
+
+export default function ChatInterface({ currentResponse, setCurrentResponse }: ChatInterfaceProps) {
   const [queryText, setQueryText] = useState("");
-  const { toast } = useToast();
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const { toast, dismiss } = useToast();
+  const client = useQueryClient();
 
-  // Fetch user queries
-  const { data: queries = [], refetch } = useQuery<TaxQuery[]>({
-    queryKey: ["/api/queries"],
-  });
-
-  // Submit query mutation
-  const submitQueryMutation = useMutation({
+  const submit = useMutation({
     mutationFn: async (query: string) => {
       const response = await apiRequest("POST", "/api/taxentia/query", { query });
-      return response.json();
+      return response.json() as Promise<TaxQuery>;
     },
     onSuccess: (data) => {
       setCurrentResponse(data);
       setQueryText("");
-      refetch();
-      toast({
-        title: "Query processed",
-        description: "Tax analysis complete with citations",
-      });
+      client.invalidateQueries({ queryKey: ["/api/queries"] });
     },
-    onError: (error) => {
+    onError: () => {
       toast({
         variant: "destructive",
-        title: "Query failed",
-        description: error.message,
+        title: "We couldn't answer that",
+        description: "Your question is still in the box. Please try again.",
       });
     },
   });
 
+  const elapsed = useElapsedSeconds(submit.isPending);
+  const canSend = queryText.trim().length > 0 && !submit.isPending;
+
+  // Grow the box with the text, up to the limit set in its class.
+  // Its width can change without the text changing, so watch for that too.
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
+    const fit = () => {
+      input.style.height = "auto";
+      input.style.height = `${input.scrollHeight}px`;
+    };
+    fit();
+    let lastWidth = input.offsetWidth;
+    const observer = new ResizeObserver(() => {
+      if (input.offsetWidth !== lastWidth) {
+        lastWidth = input.offsetWidth;
+        fit();
+      }
+    });
+    observer.observe(input);
+    return () => observer.disconnect();
+  }, [queryText]);
+
   const handleSubmit = () => {
-    if (!queryText.trim()) return;
-    submitQueryMutation.mutate(queryText);
+    if (!canSend) return;
+    dismiss(); // Clear any earlier error so it doesn't cover the new answer
+    submit.mutate(queryText.trim());
   };
 
-  const handleExampleClick = (example: string) => {
-    setQueryText(example);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    // On touch screens Enter adds a new line, and the send button sends
+    const isTouch = window.matchMedia("(pointer: coarse)").matches;
+    if (event.key === "Enter" && !event.shiftKey && !isTouch) {
+      event.preventDefault();
       handleSubmit();
     }
   };
 
-  const examples = [
-    {
-      icon: Lightbulb,
-      title: "Startup Expenditures",
-      description: "When can startup costs be deducted vs. amortized under IRC §195?",
-    },
-    {
-      icon: Home,
-      title: "Home Office Deduction",
-      description: "Requirements for claiming home office deduction under IRC §280A",
-    },
-    {
-      icon: Building,
-      title: "S Corp Elections",
-      description: "Timing requirements for Form 2553 S Corporation election",
-    },
-    {
-      icon: Calculator,
-      title: "QBI Deduction",
-      description: "IRC §199A qualified business income requirements",
-    },
-  ];
+  const applyExample = (query: string) => {
+    setQueryText(query);
+    inputRef.current?.focus();
+  };
 
   return (
-    <div className="flex flex-col h-screen" data-testid="chat-interface">
-      {/* Chat Messages Area */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {submitQueryMutation.isPending ? (
-          /* Loading State */
-          <div className="max-w-4xl mx-auto space-y-6 animate-fadeIn">
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-8 border border-blue-100">
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center animate-pulse">
-                  <Sparkles className="text-white w-4 h-4" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900">Analyzing Your Tax Question</h3>
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center space-x-2 text-sm text-gray-600">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                  <span>Searching through IRC, Treasury Regulations, and IRS Publications...</span>
-                </div>
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-4 w-1/2" />
-                  <Skeleton className="h-4 w-5/6" />
-                </div>
-              </div>
+    <div className="flex h-full flex-col" data-testid="chat-interface">
+      <div className="thin-scroll min-h-0 flex-1 overflow-y-auto">
+        {submit.isPending ? (
+          <div className="mx-auto max-w-3xl animate-rise px-4 py-8 sm:px-6 sm:py-12" aria-live="polite">
+            <p className="font-serif text-2xl leading-snug sm:text-3xl">{submit.variables}</p>
+            <p className="mt-5 flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              Searching the Code, regulations, and IRS bulletins
+              <span className="font-mono text-xs">{elapsed}s</span>
+            </p>
+            <div className="mt-8 space-y-3 border-l-2 border-gold pl-4">
+              <Skeleton className="h-4 w-full bg-muted" />
+              <Skeleton className="h-4 w-5/6 bg-muted" />
+              <Skeleton className="h-4 w-2/3 bg-muted" />
             </div>
           </div>
-        ) : !currentResponse ? (
-          /* Enhanced Welcome Experience */
-          <div className="max-w-6xl mx-auto animate-fadeIn" data-testid="welcome-message">
-            {/* Hero Section */}
-            <div className="text-center py-16">
-              <div className="relative mb-8">
-                <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-                  <Gavel className="text-white w-10 h-10" />
-                </div>
-                <div className="absolute -top-2 -right-2 w-6 h-6 bg-amber-400 rounded-full flex items-center justify-center">
-                  <Sparkles className="text-white w-3 h-3" />
-                </div>
-              </div>
-              
-              <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-4" data-testid="welcome-title">
-                Welcome to Taxentia.ai
-              </h1>
-              <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed mb-8" data-testid="welcome-description">
-                Your AI-powered tax research assistant. Get authoritative answers with precise citations from the IRC, Treasury Regulations, and official IRS guidance.
-              </p>
-              
-              {/* Feature Highlights */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto mb-12">
-                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                    <BookOpen className="text-blue-600 w-6 h-6" />
-                  </div>
-                  <h3 className="font-semibold text-gray-900 mb-2">Authoritative Sources</h3>
-                  <p className="text-sm text-gray-600">IRC, Treasury Regulations, Revenue Rulings, and Case Law</p>
-                </div>
-                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                    <TrendingUp className="text-green-600 w-6 h-6" />
-                  </div>
-                  <h3 className="font-semibold text-gray-900 mb-2">Confidence Scoring</h3>
-                  <p className="text-sm text-gray-600">AI-powered confidence assessment for each analysis</p>
-                </div>
-                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                  <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                    <Clock className="text-amber-600 w-6 h-6" />
-                  </div>
-                  <h3 className="font-semibold text-gray-900 mb-2">Instant Answers</h3>
-                  <p className="text-sm text-gray-600">Get comprehensive analysis in seconds</p>
-                </div>
-              </div>
-            </div>
-            
-            {/* Enhanced Quick Examples */}
-            <div className="mb-8">
-              <div className="flex items-center justify-center space-x-2 mb-6">
-                <Lightbulb className="text-amber-500 w-5 h-5" />
-                <h2 className="text-lg font-semibold text-gray-900">Try These Common Questions</h2>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
-                {examples.map((example, index) => {
-                  const IconComponent = example.icon;
-                  return (
-                    <div
-                      key={index}
-                      className="group bg-white p-6 rounded-xl border border-gray-200 cursor-pointer hover:border-blue-300 hover:shadow-md transition-all duration-200 animate-slideIn"
-                      style={{ animationDelay: `${index * 100}ms` }}
-                      onClick={() => handleExampleClick(example.description)}
-                      data-testid={`example-${index}`}
-                    >
-                      <div className="flex items-start space-x-4">
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:from-blue-100 group-hover:to-indigo-100 transition-colors">
-                          <IconComponent className="text-blue-600 w-5 h-5" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="font-medium text-gray-900 mb-2 group-hover:text-blue-700 transition-colors" data-testid={`example-title-${index}`}>
-                            {example.title}
-                          </div>
-                          <div className="text-sm text-gray-600 leading-relaxed" data-testid={`example-description-${index}`}>
-                            {example.description}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
+        ) : currentResponse ? (
+          <ResponseDisplay response={currentResponse} />
         ) : (
-          <ResponseDisplay 
-            response={currentResponse}
-            onCitationsToggle={onCitationsToggle}
-          />
+          <div className="mx-auto flex min-h-full max-w-2xl animate-rise flex-col justify-center px-4 py-8 sm:px-6" data-testid="welcome-message">
+            <h1 className="text-[2rem] leading-tight tracking-tight sm:text-5xl" data-testid="welcome-title">
+              What are you researching?
+            </h1>
+            <p className="mt-3 text-muted-foreground" data-testid="welcome-description">
+              Ask a U.S. federal tax question. Answers cite the Code, regulations, and IRS guidance.
+            </p>
+            <p className="eyebrow mt-8">Try one of these</p>
+            <ul className="mt-2 border-t">
+              {EXAMPLES.map((example, index) => (
+                <li key={example.title} className="border-b">
+                  <button
+                    type="button"
+                    onClick={() => applyExample(example.query)}
+                    className="group flex w-full flex-col gap-0.5 py-3 text-left transition-colors hover:text-primary"
+                    data-testid={`example-${index}`}
+                  >
+                    <span className="font-medium">{example.title}</span>
+                    <span className="text-sm text-muted-foreground">{example.query}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </div>
 
-      {/* Input Area */}
-      <div className="border-t border-gray-200 bg-white p-4" data-testid="input-area">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-end space-x-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Textarea
-                  value={queryText}
-                  onChange={(e) => setQueryText(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Ask about U.S. federal tax law (IRC, Treasury Regulations, IRS Publications)..."
-                  className="resize-none pr-12 focus:ring-2 focus:ring-taxentia-blue focus:border-transparent"
-                  rows={3}
-                  disabled={submitQueryMutation.isPending}
-                  data-testid="input-query"
-                />
-                <Button
-                  onClick={handleSubmit}
-                  disabled={!queryText.trim() || submitQueryMutation.isPending}
-                  className="absolute right-2 bottom-2 bg-taxentia-navy hover:bg-blue-900 text-white p-2"
-                  size="sm"
-                  data-testid="button-submit-query"
-                >
-                  <Send className="w-4 h-4" />
-                </Button>
-              </div>
-              
-              {/* Input Helpers */}
-              <div className="flex items-center justify-between mt-3 text-xs">
-                <div className="flex items-center space-x-4 text-gray-500">
-                  <Badge variant="outline" className="text-xs px-2 py-1">
-                    <kbd className="font-mono">⌘+Enter</kbd> to send
-                  </Badge>
-                  <span>•</span>
-                  <span data-testid="scope-notice">U.S. federal tax only</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Badge variant="secondary" className="text-xs px-2 py-1">
-                    <Clock className="w-3 h-3 mr-1" />
-                    12/20 queries today
-                  </Badge>
-                  <div className="w-1 h-1 bg-green-500 rounded-full"></div>
-                </div>
-              </div>
-            </div>
+      <div className="shrink-0 border-t bg-card px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:px-6" data-testid="input-area">
+        <div className="mx-auto max-w-3xl">
+          <div className="flex items-end gap-2 rounded-xl border border-input bg-background p-1.5 transition-shadow focus-within:border-primary focus-within:ring-2 focus-within:ring-ring/40">
+            <textarea
+              ref={inputRef}
+              value={queryText}
+              onChange={(event) => setQueryText(event.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ask a federal tax question"
+              aria-label="Your tax question"
+              rows={1}
+              maxLength={2000}
+              disabled={submit.isPending}
+              className="thin-scroll max-h-40 min-h-10 flex-1 resize-none bg-transparent px-2.5 py-2 text-[15px] leading-6 outline-none placeholder:text-muted-foreground disabled:opacity-60"
+              data-testid="input-query"
+            />
+            <Button
+              onClick={handleSubmit}
+              disabled={!canSend}
+              size="icon"
+              className="h-10 w-10 shrink-0 rounded-lg"
+              aria-label="Send question"
+              data-testid="button-submit-query"
+            >
+              <ArrowUp />
+            </Button>
           </div>
+          <p className="mt-2 text-center text-xs text-muted-foreground" data-testid="scope-notice">
+            U.S. federal tax only. Answers can be wrong, so check the cited sources.
+          </p>
         </div>
       </div>
     </div>

@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -41,14 +40,10 @@ export default function AuthLogin({ onSuccess, onSwitchToSignup }: LoginProps) {
   const displayError = localError || error;
 
   return (
-    <Card className="w-full max-w-md shadow-lg border-taxentia-slate">
-      <CardHeader className="space-y-2 pb-6">
-        <CardTitle className="font-heading text-h2 text-taxentia-navy">Welcome Back</CardTitle>
-        <CardDescription className="font-body text-body text-taxentia-text-slate">
-          Sign in to your Taxentia account
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <div className="w-full">
+      <h1 className="text-4xl tracking-tight">Welcome Back</h1>
+      <p className="mt-2 text-muted-foreground">Sign in to your Taxentia account</p>
+      <div className="mt-8">
         <form onSubmit={handleSubmit} className="space-y-5">
           {displayError && (
             <Alert variant="destructive">
@@ -58,32 +53,36 @@ export default function AuthLogin({ onSuccess, onSwitchToSignup }: LoginProps) {
           )}
 
           <div className="space-y-2">
-            <label className="font-body text-sm font-medium text-taxentia-navy">Email</label>
+            <label htmlFor="email" className="text-sm font-medium">Email</label>
             <Input
+              id="email"
               type="email"
+              autoComplete="email"
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
-              className="font-body border-taxentia-slate focus:ring-2 focus:ring-taxentia-sky focus:border-taxentia-sky"
+              className="h-11 bg-card"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="font-body text-sm font-medium text-taxentia-navy">Password</label>
+            <label htmlFor="password" className="text-sm font-medium">Password</label>
             <Input
+              id="password"
               type="password"
+              autoComplete="current-password"
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
-              className="font-body border-taxentia-slate focus:ring-2 focus:ring-taxentia-sky focus:border-taxentia-sky"
+              className="h-11 bg-card"
             />
           </div>
 
           <Button
             type="submit"
-            className="w-full bg-taxentia-sky hover:bg-taxentia-sky-light text-white font-heading font-semibold py-6 text-base shadow-md transition-colors"
+            className="h-11 w-full text-[15px]"
             disabled={loading}
           >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -91,17 +90,17 @@ export default function AuthLogin({ onSuccess, onSwitchToSignup }: LoginProps) {
           </Button>
 
           <div className="text-center text-sm pt-2">
-            <span className="font-body text-taxentia-text-slate">Don't have an account? </span>
+            <span className="text-muted-foreground">Don't have an account? </span>
             <button
               type="button"
               onClick={onSwitchToSignup}
-              className="font-body text-taxentia-sky hover:text-taxentia-navy hover:underline font-semibold"
+              className="inline-flex min-h-11 items-center font-medium text-primary underline-offset-4 hover:underline"
             >
               Sign up
             </button>
           </div>
         </form>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

@@ -1,392 +1,268 @@
-import { FileDown, Copy, Share2, Gavel, BookOpen, Search, AlertTriangle, TrendingUp, ExternalLink, Calendar, FileText, Clock } from "lucide-react";
+import { useRef, useState } from "react";
+import { Calendar, Copy, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
+import { AUTHORITY_TYPE, confidenceStyle, safeHref, timeAgo } from "@/lib/research";
+import { cn } from "@/lib/utils";
 import type { TaxQuery, TaxResponse } from "@shared/schema";
 
 interface ResponseDisplayProps {
   response: TaxQuery;
-  onCitationsToggle: () => void;
 }
 
-export default function ResponseDisplay({ response, onCitationsToggle }: ResponseDisplayProps) {
-  const { toast } = useToast();
-  const parsedResponse = response.response as TaxResponse;
+function Section({ title, children, testId }: { title: string; children: React.ReactNode; testId?: string }) {
+  return (
+    <section className="border-t pt-5" data-testid={testId}>
+      <h2 className="eyebrow mb-3 font-mono">{title}</h2>
+      {children}
+    </section>
+  );
+}
 
-  if (!parsedResponse) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-gray-500">No response data available</p>
-      </div>
-    );
+export default function ResponseDisplay({ response }: ResponseDisplayProps) {
+  const { toast } = useToast();
+  const [flashed, setFlashed] = useState<number | null>(null);
+  const flashTimer = useRef<ReturnType<typeof setTimeout>>();
+  const answer = response.response as TaxResponse | null;
+
+  if (!answer) {
+    return <p className="py-12 text-center text-muted-foreground">This answer has no saved content.</p>;
   }
 
-  const handleExportPDF = () => {
-    toast({
-      title: "Export initiated",
-      description: "PDF export will be available in Pro plan",
-    });
-  };
+  const authority = answer.authority ?? [];
+  const analysis = answer.analysis ?? [];
+  const confidence = confidenceStyle(answer.confidence?.color);
+  const ConfidenceIcon = confidence.icon;
+  const notes = answer.confidence?.notes;
+  const notesText = Array.isArray(notes) ? notes.join(" ") : notes;
+  const guidance = answer.proceduralGuidance;
+  const guidanceGroups = [
+    { title: "Forms", items: guidance?.forms },
+    { title: "Deadlines", items: guidance?.deadlines },
+    { title: "Elections", items: guidance?.elections },
+  ].filter((group) => group.items && group.items.length > 0);
 
-  const handleCopyResponse = () => {
-    const textContent = `Query: ${response.query}\n\nConclusion: ${parsedResponse.conclusion}\n\nAnalysis: ${parsedResponse.analysis.map(a => `${a.step}: ${a.rationale}`).join('\n\n')}`;
-    navigator.clipboard.writeText(textContent);
-    toast({
-      title: "Copied to clipboard",
-      description: "Response content has been copied",
-    });
-  };
-
-  const handleShare = () => {
-    toast({
-      title: "Share feature",
-      description: "Sharing will be available in a future update",
-    });
-  };
-
-  const getConfidenceColor = (color: string) => {
-    switch (color) {
-      case 'green': return 'text-green-600 bg-green-50 border-green-200';
-      case 'amber': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-      default: return 'text-red-600 bg-red-50 border-red-200';
+  const copyAnswer = async () => {
+    const lines = [
+      `Question: ${response.query}`,
+      `Conclusion: ${answer.conclusion}`,
+      `Authority:\n${authority.map((item) => `- ${item.citation}: ${item.title}`).join("\n")}`,
+      `Analysis:\n${analysis.map((item) => `${item.step}: ${item.rationale}`).join("\n\n")}`,
+    ];
+    try {
+      await navigator.clipboard.writeText(lines.join("\n\n"));
+      toast({ title: "Answer copied" });
+    } catch {
+      toast({ variant: "destructive", title: "Couldn't copy the answer" });
     }
   };
 
-  const getAuthorityBadgeColor = (sourceType: string) => {
-    switch (sourceType) {
-      case 'irc':
-      case 'regs':
-        return 'bg-blue-100 text-blue-800';
-      case 'pubs':
-        return 'bg-amber-100 text-amber-800';
-      case 'rulings':
-        return 'bg-green-100 text-green-800';
-      case 'cases':
-        return 'bg-purple-100 text-purple-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getAuthorityType = (sourceType: string) => {
-    switch (sourceType) {
-      case 'irc':
-      case 'regs':
-        return 'Primary Authority';
-      case 'pubs':
-        return 'Secondary Authority';
-      case 'rulings':
-        return 'Administrative';
-      case 'cases':
-        return 'Case Law';
-      default:
-        return 'Authority';
-    }
+  const jumpToAuthority = (index: number) => {
+    document.getElementById(`authority-${index}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setFlashed(index);
+    clearTimeout(flashTimer.current);
+    flashTimer.current = setTimeout(() => setFlashed(null), 1600);
   };
 
   return (
-    <div className="space-y-6" data-testid="response-display">
-      {/* User Question */}
-      <div className="flex justify-end">
-        <div className="bg-taxentia-blue text-white p-4 rounded-lg max-w-2xl" data-testid="user-query">
-          <p className="text-sm">{response.query}</p>
-        </div>
-      </div>
-
-      {/* AI Response */}
-      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-lg animate-fadeIn">
-        {/* Response Header */}
-        <div className="bg-gradient-to-r from-gray-50 to-white border-b border-gray-200 p-6" data-testid="response-header">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-taxentia-navy rounded-full flex items-center justify-center">
-                <Gavel className="text-white w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900" data-testid="response-title">Taxentia Analysis</h3>
-                <div className="flex items-center space-x-2 mt-1">
-                  <div className="flex items-center space-x-1">
-                    <div className={`w-2 h-2 rounded-full ${
-                      parsedResponse.confidence.color === 'green' ? 'bg-green-500' :
-                      parsedResponse.confidence.color === 'amber' ? 'bg-yellow-500' : 'bg-red-500'
-                    }`}></div>
-                    <span className={`text-xs font-medium ${
-                      parsedResponse.confidence.color === 'green' ? 'text-green-600' :
-                      parsedResponse.confidence.color === 'amber' ? 'text-yellow-600' : 'text-red-600'
-                    }`} data-testid="confidence-indicator">
-                      {parsedResponse.confidence.score}% - {parsedResponse.confidence.color === 'green' ? 'High' :
-                       parsedResponse.confidence.color === 'amber' ? 'Medium' : 'Low'} Confidence
-                    </span>
-                  </div>
-                  <span className="text-xs text-gray-400">•</span>
-                  <span className="text-xs text-gray-500" data-testid="response-time">Response time: 2.3s</span>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleExportPDF}
-                title="Export to PDF"
-                data-testid="button-export-pdf"
-              >
-                <FileDown className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleCopyResponse}
-                title="Copy Response"
-                data-testid="button-copy-response"
-              >
-                <Copy className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleShare}
-                title="Share"
-                data-testid="button-share"
-              >
-                <Share2 className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
+    <article
+      className="mx-auto grid max-w-6xl animate-rise gap-x-12 gap-y-8 px-4 py-8 sm:px-6 sm:py-10 xl:grid-cols-[minmax(0,1fr)_20rem]"
+      data-testid="response-display"
+    >
+      {/* Question and conclusion */}
+      <header className="min-w-0">
+        <h1 className="text-2xl leading-snug tracking-tight sm:text-[2rem]" data-testid="user-query">
+          {response.query}
+        </h1>
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+          <span className={cn("flex items-center gap-1.5 font-medium", confidence.text)} data-testid="confidence-indicator">
+            <ConfidenceIcon className="h-4 w-4" />
+            {confidence.label} confidence, {answer.confidence?.score ?? 0}%
+          </span>
+          <span className="text-muted-foreground">{timeAgo(response.createdAt)}</span>
+          <Button variant="ghost" size="sm" onClick={copyAnswer} className="ml-auto h-9 text-muted-foreground" data-testid="button-copy-response">
+            <Copy /> Copy
+          </Button>
         </div>
 
-        <div className="p-6 space-y-6">
-          {/* Conclusion Section */}
-          <div className="bg-white border border-gray-200 rounded-lg p-4" data-testid="conclusion-section">
-            <div className="flex items-center space-x-2 mb-3">
-              <Gavel className="text-taxentia-navy w-4 h-4" />
-              <h4 className="font-semibold text-gray-900">Conclusion</h4>
-            </div>
-            <p className="text-gray-800 leading-relaxed" data-testid="conclusion-content">
-              {parsedResponse.conclusion}
-            </p>
-          </div>
+        <div className="mt-6 rounded-r-lg border-l-[3px] border-gold bg-card py-4 pl-5 pr-5 shadow-sm" data-testid="conclusion-section">
+          <p className="eyebrow mb-2">Conclusion</p>
+          <p className="font-serif text-xl leading-relaxed" data-testid="conclusion-content">
+            {answer.conclusion}
+          </p>
+        </div>
+      </header>
 
-          {/* Authority Section */}
-          <div className="bg-white border border-gray-200 rounded-lg p-4" data-testid="authority-section">
-            <div className="flex items-center space-x-2 mb-3">
-              <BookOpen className="text-taxentia-gold w-4 h-4" />
-              <h4 className="font-semibold text-gray-900">Authority</h4>
-            </div>
-            <div className="space-y-3">
-              {parsedResponse.authority.map((auth, index) => (
-                <div
-                  key={index}
-                  className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer"
-                  onClick={onCitationsToggle}
+      {/* Authority sits beside the memo on wide screens, and right after the conclusion on phones */}
+      <aside className="min-w-0 xl:sticky xl:top-6 xl:row-span-2 xl:self-start" data-testid="authority-section">
+        <h2 className="eyebrow mb-3 font-mono">Authority ({authority.length})</h2>
+        {authority.length === 0 ? (
+          <p className="rounded-lg border bg-card p-4 text-sm text-muted-foreground">
+            No sources were returned for this answer, so treat it as unverified.
+          </p>
+        ) : (
+          <ol className="space-y-2">
+            {authority.map((item, index) => {
+              const href = safeHref(item.directUrl) ?? safeHref(item.url);
+              return (
+                <li
+                  key={`${item.citation}-${index}`}
+                  id={`authority-${index}`}
+                  className={cn(
+                    "rounded-lg border bg-card p-3.5 transition-colors duration-500",
+                    flashed === index && "border-gold bg-gold/10",
+                  )}
                   data-testid={`authority-item-${index}`}
                 >
-                  <div className="w-6 h-6 bg-taxentia-navy rounded flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-white text-xs font-bold">{index + 1}</span>
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-medium text-sm text-gray-900" data-testid={`authority-title-${index}`}>
-                      {auth.citation}
-                    </div>
-                    <div className="text-xs text-gray-600 mt-1" data-testid={`authority-description-${index}`}>
-                      {auth.title}
-                    </div>
-                    {(auth.effectiveDate || auth.versionDate) && (
-                      <div className="flex items-center space-x-1 mt-1">
-                        <Calendar className="w-3 h-3 text-gray-400" />
-                        <span className="text-xs text-gray-500">
-                          {auth.effectiveDate || `Version: ${auth.versionDate}`}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex items-center space-x-2 mt-2">
-                      <Badge className={getAuthorityBadgeColor(auth.sourceType)} data-testid={`authority-type-${index}`}>
-                        {getAuthorityType(auth.sourceType)}
-                      </Badge>
-                      {auth.directUrl ? (
-                        <a href={auth.directUrl} target="_blank" rel="noopener noreferrer" className="flex items-center space-x-1 text-taxentia-blue text-xs hover:underline" data-testid={`authority-direct-link-${index}`}>
-                          <span>Direct Link</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      ) : (
-                        <a href={auth.url} target="_blank" rel="noopener noreferrer" className="flex items-center space-x-1 text-taxentia-blue text-xs hover:underline" data-testid={`authority-link-${index}`}>
-                          <span>View Source</span>
-                          <ExternalLink className="w-3 h-3" />
+                  <div className="flex items-start gap-2.5">
+                    <span className="mt-0.5 font-mono text-xs text-gold-deep">{index + 1}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="break-words font-mono text-[13px] font-medium" data-testid={`authority-title-${index}`}>
+                        {item.citation}
+                      </p>
+                      <p className="mt-1 text-sm leading-snug text-muted-foreground" data-testid={`authority-description-${index}`}>
+                        {item.title}
+                      </p>
+                      <p className="mt-2 text-xs text-muted-foreground" data-testid={`authority-type-${index}`}>
+                        {AUTHORITY_TYPE[item.sourceType] ?? "Authority"}
+                      </p>
+                      {(item.effectiveDate || item.versionDate) && (
+                        <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                          <Calendar className="h-3 w-3" />
+                          {item.effectiveDate || `Version ${item.versionDate}`}
+                        </p>
+                      )}
+                      {href && (
+                        <a
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-2 inline-flex min-h-8 items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
+                          data-testid={`authority-link-${index}`}
+                        >
+                          Read source <ExternalLink className="h-3 w-3" />
                         </a>
                       )}
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </aside>
 
-          {/* Analysis Section */}
-          <div className="bg-white border border-gray-200 rounded-lg p-4" data-testid="analysis-section">
-            <div className="flex items-center space-x-2 mb-3">
-              <Search className="text-taxentia-blue w-4 h-4" />
-              <h4 className="font-semibold text-gray-900">Analysis</h4>
-            </div>
-            <div className="space-y-4">
-              {parsedResponse.analysis.map((step, index) => (
-                <div key={index} className="border-l-4 border-taxentia-blue pl-4" data-testid={`analysis-step-${index}`}>
-                  <h5 className="font-medium text-gray-900 mb-2" data-testid={`analysis-step-title-${index}`}>
-                    {index + 1}. {step.step}
-                  </h5>
-                  <p className="text-sm text-gray-700 mb-2" data-testid={`analysis-step-rationale-${index}`}>
+      {/* Rest of the memo */}
+      <div className="min-w-0 space-y-8">
+        <Section title="Analysis" testId="analysis-section">
+          <ol className="space-y-6">
+            {analysis.map((step, index) => (
+              <li key={index} className="grid grid-cols-[1.5rem_minmax(0,1fr)]" data-testid={`analysis-step-${index}`}>
+                <span className="pt-0.5 font-mono text-xs text-gold-deep">{index + 1}</span>
+                <div>
+                  <h3 className="font-sans text-[15px] font-semibold leading-snug" data-testid={`analysis-step-title-${index}`}>
+                    {step.step}
+                  </h3>
+                  <p className="mt-1.5 text-[15px] leading-relaxed text-foreground/85" data-testid={`analysis-step-rationale-${index}`}>
                     {step.rationale}
                   </p>
                   {step.proceduralNotes && (
-                    <div className="bg-blue-50 border-l-2 border-blue-200 pl-3 py-2 mb-2">
-                      <div className="flex items-center space-x-1 mb-1">
-                        <FileText className="w-3 h-3 text-blue-500" />
-                        <span className="text-xs font-medium text-blue-700">Procedural Note</span>
-                      </div>
-                      <p className="text-xs text-blue-600">{step.proceduralNotes}</p>
+                    <p className="mt-2 rounded-md bg-accent px-3 py-2 text-sm leading-relaxed">
+                      <span className="font-medium">Procedure: </span>
+                      {step.proceduralNotes}
+                    </p>
+                  )}
+                  {step.authorityRefs?.some((ref) => authority[ref]) && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {step.authorityRefs.map((ref, refIndex) =>
+                        authority[ref] ? (
+                          <button
+                            key={refIndex}
+                            type="button"
+                            onClick={() => jumpToAuthority(ref)}
+                            className="cite min-h-8 max-w-full truncate transition-colors hover:bg-gold/25"
+                            data-testid={`authority-ref-${index}-${refIndex}`}
+                          >
+                            {authority[ref].citation}
+                          </button>
+                        ) : null,
+                      )}
                     </div>
                   )}
-                  {step.authorityRefs && step.authorityRefs.length > 0 && (
-                    <div className="flex items-center space-x-2 text-xs text-gray-500">
-                      <span>Authority refs:</span>
-                      {step.authorityRefs.map((ref, refIndex) => (
-                        <Badge key={refIndex} variant="secondary" className="text-xs" data-testid={`authority-ref-${index}-${refIndex}`}>
-                          {parsedResponse.authority[ref]?.citation || `Ref ${ref}`}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </Section>
+
+        {guidanceGroups.length > 0 && (
+          <Section title="Procedural guidance" testId="procedural-guidance-section">
+            <div className="grid gap-5 sm:grid-cols-3">
+              {guidanceGroups.map((group) => (
+                <div key={group.title}>
+                  <h3 className="font-sans text-sm font-semibold">{group.title}</h3>
+                  <ul className="mt-1.5 space-y-1 text-sm leading-relaxed text-foreground/85">
+                    {group.items!.map((item, index) => (
+                      <li key={index}>{item}</li>
+                    ))}
+                  </ul>
                 </div>
               ))}
             </div>
-          </div>
+          </Section>
+        )}
 
-          {/* Scope & Assumptions Section */}
-          <div className="bg-white border border-gray-200 rounded-lg p-4" data-testid="scope-section">
-            <div className="flex items-center space-x-2 mb-3">
-              <AlertTriangle className="text-yellow-500 w-4 h-4" />
-              <h4 className="font-semibold text-gray-900">Scope & Assumptions</h4>
-            </div>
-            <div className="text-sm text-gray-700" data-testid="scope-content">
-              <p>{parsedResponse.scopeAssumptions}</p>
-            </div>
-          </div>
+        <Section title="Scope and assumptions" testId="scope-section">
+          <p className="text-[15px] leading-relaxed text-foreground/85" data-testid="scope-content">
+            {answer.scopeAssumptions}
+          </p>
+        </Section>
 
-          {/* Confidence Section */}
-          <div className="bg-white border border-gray-200 rounded-lg p-4" data-testid="confidence-section">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center space-x-2">
-                <TrendingUp className="text-green-500 w-4 h-4" />
-                <h4 className="font-semibold text-gray-900">{parsedResponse.confidence.score}% Confidence Assessment</h4>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-24">
-                  <Progress value={parsedResponse.confidence.score} className="h-2" />
-                </div>
-                <span className={`text-sm font-medium ${
-                  parsedResponse.confidence.color === 'green' ? 'text-green-600' :
-                  parsedResponse.confidence.color === 'amber' ? 'text-yellow-600' : 'text-red-600'
-                }`} data-testid="confidence-score">
-                  {parsedResponse.confidence.color === 'green' ? 'High' :
-                   parsedResponse.confidence.color === 'amber' ? 'Medium' : 'Low'}
-                </span>
-              </div>
+        <Section title="Confidence" testId="confidence-section">
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-sm font-medium" data-testid="confidence-score">
+              {answer.confidence?.score ?? 0}%
+            </span>
+            <div className="h-1 max-w-48 flex-1 rounded-full bg-muted">
+              <div className={cn("h-1 rounded-full", confidence.bar)} style={{ width: `${answer.confidence?.score ?? 0}%` }} />
             </div>
-            <div className="text-sm text-gray-700" data-testid="confidence-notes">
-              <p>{parsedResponse.confidence.notes || 'Primary authority is directly on point with minimal interpretive uncertainty.'}</p>
-            </div>
+            <span className={cn("text-sm font-medium", confidence.text)}>{confidence.label}</span>
           </div>
+          {notesText && (
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground" data-testid="confidence-notes">
+              {notesText}
+            </p>
+          )}
+        </Section>
 
-          {/* Further Reading Section */}
-          {parsedResponse.furtherReading && parsedResponse.furtherReading.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-lg p-4" data-testid="further-reading-section">
-              <div className="flex items-center space-x-2 mb-3">
-                <BookOpen className="text-blue-500 w-4 h-4" />
-                <h4 className="font-semibold text-gray-900">Further Reading</h4>
-              </div>
-              <div className="space-y-2">
-                {parsedResponse.furtherReading.map((reading, index) => (
-                  <div key={index} className="flex items-start space-x-2 p-2 bg-blue-50 rounded" data-testid={`further-reading-${index}`}>
-                    <ExternalLink className="w-3 h-3 text-blue-500 mt-1 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <a href={reading.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-blue-700 hover:underline">
+        {answer.furtherReading && answer.furtherReading.length > 0 && (
+          <Section title="Further reading" testId="further-reading-section">
+            <ul className="space-y-3">
+              {answer.furtherReading.map((reading, index) => {
+                const href = safeHref(reading.url);
+                return (
+                  <li key={index} className="text-sm leading-relaxed" data-testid={`further-reading-${index}`}>
+                    {href ? (
+                      <a href={href} target="_blank" rel="noopener noreferrer" className="inline-block py-1.5 font-medium text-primary underline-offset-4 hover:underline">
                         {reading.citation}
                       </a>
-                      <p className="text-xs text-gray-600 mt-1">{reading.title}</p>
-                      <p className="text-xs text-blue-600 mt-1">{reading.relevance}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+                    ) : (
+                      <span className="font-medium">{reading.citation}</span>
+                    )}
+                    <span className="text-muted-foreground"> {reading.title}. {reading.relevance}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </Section>
+        )}
 
-          {/* Procedural Guidance Section */}
-          {parsedResponse.proceduralGuidance && (
-            <div className="bg-white border border-gray-200 rounded-lg p-4" data-testid="procedural-guidance-section">
-              <div className="flex items-center space-x-2 mb-3">
-                <Clock className="text-purple-500 w-4 h-4" />
-                <h4 className="font-semibold text-gray-900">Procedural Guidance</h4>
-              </div>
-              <div className="grid gap-4 md:grid-cols-3">
-                {parsedResponse.proceduralGuidance.forms && parsedResponse.proceduralGuidance.forms.length > 0 && (
-                  <div className="space-y-2">
-                    <h5 className="text-sm font-medium text-gray-900 flex items-center space-x-1">
-                      <FileText className="w-3 h-3" />
-                      <span>Required Forms</span>
-                    </h5>
-                    {parsedResponse.proceduralGuidance.forms.map((form, index) => (
-                      <Badge key={index} variant="outline" className="block text-xs">
-                        {form}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-                {parsedResponse.proceduralGuidance.deadlines && parsedResponse.proceduralGuidance.deadlines.length > 0 && (
-                  <div className="space-y-2">
-                    <h5 className="text-sm font-medium text-gray-900 flex items-center space-x-1">
-                      <Calendar className="w-3 h-3" />
-                      <span>Key Deadlines</span>
-                    </h5>
-                    {parsedResponse.proceduralGuidance.deadlines.map((deadline, index) => (
-                      <Badge key={index} variant="outline" className="block text-xs bg-orange-50 border-orange-200">
-                        {deadline}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-                {parsedResponse.proceduralGuidance.elections && parsedResponse.proceduralGuidance.elections.length > 0 && (
-                  <div className="space-y-2">
-                    <h5 className="text-sm font-medium text-gray-900 flex items-center space-x-1">
-                      <TrendingUp className="w-3 h-3" />
-                      <span>Available Elections</span>
-                    </h5>
-                    {parsedResponse.proceduralGuidance.elections.map((election, index) => (
-                      <Badge key={index} variant="outline" className="block text-xs bg-green-50 border-green-200">
-                        {election}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Disclaimer Section */}
-          {parsedResponse.disclaimer && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4" data-testid="disclaimer-section">
-              <div className="flex items-start space-x-2">
-                <AlertTriangle className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h5 className="text-sm font-medium text-yellow-800 mb-1">Professional Disclaimer</h5>
-                  <p className="text-xs text-yellow-700">{parsedResponse.disclaimer}</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+        {answer.disclaimer && (
+          <p className="border-t pt-5 text-xs leading-relaxed text-muted-foreground" data-testid="disclaimer-section">
+            {answer.disclaimer}
+          </p>
+        )}
       </div>
-    </div>
+    </article>
   );
 }

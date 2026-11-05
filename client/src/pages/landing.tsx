@@ -1,663 +1,314 @@
-import React, { useState } from 'react';
-import { useLocation } from 'wouter';
-import { ArrowRight, Menu, X, ChevronDown, BookOpen, Zap, Award, Lock, Eye, Shield, TrendingUp, CheckCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState } from "react";
+import { Link } from "wouter";
+import { ArrowRight, Menu, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Logo } from "@/components/brand";
+
+const NAV = [
+  { href: "#answers", label: "Answers" },
+  { href: "#sources", label: "Sources" },
+  { href: "#how", label: "How it works" },
+  { href: "#faq", label: "FAQ" },
+];
+
+const ANSWER_PARTS = [
+  { title: "Conclusion", body: "The short answer comes first, so you can tell right away whether it helps." },
+  { title: "Authority", body: "Each source is listed with its citation, type, version date, and a link to read it." },
+  { title: "Analysis", body: "The reasoning runs step by step, and each step points to the authority behind it." },
+  { title: "Scope and confidence", body: "Assumptions are stated, and a score shows how much review the answer needs." },
+];
+
+const CONFIDENCE_BANDS = [
+  { label: "High", range: "85 to 100", bar: "bg-good", width: "w-full", body: "Sources speak directly to the question." },
+  { label: "Medium", range: "60 to 84", bar: "bg-warn", width: "w-3/4", body: "Some interpretation or assumptions were needed." },
+  { label: "Low", range: "0 to 59", bar: "bg-bad", width: "w-1/3", body: "Limited support. Research this one further." },
+];
+
+const SOURCES = [
+  {
+    cite: "26 U.S.C.",
+    name: "Internal Revenue Code",
+    body: "The federal tax statutes, searched section by section.",
+  },
+  {
+    cite: "26 C.F.R.",
+    name: "Treasury Regulations",
+    body: "How Treasury interprets and applies the Code.",
+  },
+  {
+    cite: "I.R.B.",
+    name: "Internal Revenue Bulletins",
+    body: "Published IRS guidance. New bulletins are checked every week.",
+  },
+];
+
+const STEPS = [
+  { title: "Ask", body: "Write your question in plain English." },
+  { title: "Retrieve", body: "A vector search finds the most relevant passages in the library." },
+  { title: "Draft", body: "An AI model writes a structured answer from those passages." },
+  { title: "Verify", body: "You read the cited sources and decide what to rely on." },
+];
+
+const FAQS = [
+  {
+    q: "How accurate are the answers?",
+    a: "Answers are written by an AI model from retrieved federal sources, so they can contain mistakes. The citations and confidence score show where to check. Read the underlying authority before relying on any answer.",
+  },
+  {
+    q: "Can this replace my CPA or tax attorney?",
+    a: "No. Taxentia is a research tool and does not give tax or legal advice. It is designed to help you find and read the right authority faster.",
+  },
+  {
+    q: "What does the library cover?",
+    a: "U.S. federal tax only: the Internal Revenue Code, Treasury Regulations, and Internal Revenue Bulletins. It does not include state tax law or a library of court decisions.",
+  },
+  {
+    q: "How current is the information?",
+    a: "New Internal Revenue Bulletins are checked weekly. The Code and regulations are loaded in larger batches and refreshed less often, so check the version date shown on each citation.",
+  },
+  {
+    q: "Who can see my questions?",
+    a: "Questions are saved to your account so you can reopen them, and other accounts can't open them. They are also sent to an AI provider to produce the answer, so leave out client names, Social Security numbers, and other sensitive details.",
+  },
+];
+
+function SampleAnswer() {
+  return (
+    <figure className="rounded-xl bg-background p-5 text-foreground shadow-2xl shadow-black/40 sm:p-7">
+      <figcaption className="eyebrow mb-4 flex items-center justify-between gap-3">
+        <span>Sample answer format</span>
+        <span className="flex items-center gap-1.5 normal-case tracking-normal text-good">
+          <span className="h-1.5 w-1.5 rounded-full bg-good" aria-hidden />
+          High confidence
+        </span>
+      </figcaption>
+      <p className="font-serif text-xl leading-snug sm:text-2xl">
+        Can a self-employed consultant deduct a home office?
+      </p>
+      <div className="mt-5 border-l-2 border-gold pl-4">
+        <p className="eyebrow mb-1.5">Conclusion</p>
+        <p className="text-sm leading-relaxed sm:text-[15px]">
+          Generally yes, if part of the home is used regularly and exclusively as the principal place of
+          business. The deduction is limited by the income from that business.
+        </p>
+      </div>
+      <div className="mt-5">
+        <p className="eyebrow mb-2">Authority</p>
+        <ul className="flex flex-wrap gap-2">
+          <li className="cite">IRC §280A(c)(1)</li>
+          <li className="cite">IRC §280A(c)(5)</li>
+          <li className="cite">Rev. Proc. 2013-13</li>
+        </ul>
+      </div>
+    </figure>
+  );
+}
 
 export default function Landing() {
-  const [, setLocation] = useLocation();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [selectedUseCase, setSelectedUseCase] = useState('cpa');
-
-  const navigateToAuth = () => {
-    setLocation('/auth');
-  };
-
-  const useCases = {
-    cpa: {
-      title: "Client Consultations",
-      description: "CPAs answering client tax questions instantly",
-      query: "Can my LLC deduct home office expenses?",
-      response: "Yes, under IRC §280A(c)(1), home office deductions apply if the space is used regularly and exclusively for business. For LLCs taxed as partnerships, each partner deducts on Schedule C.",
-      time: "Before: 15 min | After: 2 min",
-      authorities: ["IRC §280A(c)(1)", "Treas. Reg. §1.280A-2"],
-    },
-    advisor: {
-      title: "Tax Planning",
-      description: "Financial advisors researching strategies",
-      query: "Current rules for charitable remainder trusts?",
-      response: "IRC §664 allows donors to receive income for life or term of years, with remainder to charity. Key requirements: non-grantor status, fixed or unitrust payment, minimum 10% charitable remainder.",
-      time: "Before: 45 min | After: 5 min",
-      authorities: ["IRC §664", "Rev. Rul. 2003-72"],
-    },
-    attorney: {
-      title: "Research & Memos",
-      description: "Tax attorneys drafting analyses",
-      query: "How is cryptocurrency treated under IRC §988?",
-      response: "Personal transactions may qualify for IRC §988 treatment, creating ordinary gain/loss. However, only applies to functional currency contracts and consumer transactions.",
-      time: "Before: 2 hours | After: 15 min",
-      authorities: ["IRC §988", "Notice 2014-21"],
-    },
-    accountant: {
-      title: "Compliance Review",
-      description: "Accountants verifying tax treatment",
-      query: "Are meal expenses deductible under §274(n)?",
-      response: "Business meals are 50% deductible (temporary 100% for 2021-2022). Entertainment is non-deductible. Exceptions apply for employee meals and specific circumstances.",
-      time: "Before: 30 min | After: 3 min",
-      authorities: ["IRC §274(n)", "Notice 2021-25"],
-    },
-  };
-
-  const taxQuestions = [
-    { role: "Small Business Owner", avatar: "👤", q: "Can I deduct home office expenses for my LLC?" },
-    { role: "Financial Advisor", avatar: "💼", q: "Latest on cryptocurrency taxation for 2024?" },
-    { role: "Startup CFO", avatar: "📊", q: "R&D tax credit eligibility for software?" },
-    { role: "CPA", avatar: "🧮", q: "Meal deduction limits under current rules?" },
-  ];
-
-  const confidenceExamples = [
-    {
-      level: "High",
-      score: "85-100",
-      color: "bg-green-50",
-      description: "Strong authority support, minimal assumptions",
-      example: "Standard IRC deduction eligibility",
-    },
-    {
-      level: "Medium",
-      score: "60-84",
-      color: "bg-yellow-50",
-      description: "Moderate authority support, some interpretation",
-      example: "Complex depreciation method election",
-    },
-    {
-      level: "Low",
-      score: "0-59",
-      color: "bg-red-50",
-      description: "Limited authority, significant assumptions",
-      example: "Emerging tax treatment guidance gaps",
-    },
-  ];
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-taxentia-white">
-      {/* Navbar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-taxentia-slate">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo */}
-            <div className="flex items-center space-x-3">
-              <div className="w-9 h-9 bg-taxentia-navy rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <span className="font-heading font-bold text-taxentia-navy text-xl">Taxentia</span>
+    <div className="min-h-screen bg-background">
+      {/* Hero, with navigation on the same dark surface */}
+      <div className="ruled bg-ink text-white">
+        <nav className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6" aria-label="Main">
+          <div className="flex h-16 items-center justify-between">
+            <Link href="/" aria-label="Taxentia home">
+              <Logo inverted />
+            </Link>
+            <div className="hidden items-center gap-7 md:flex">
+              {NAV.map((item) => (
+                <a key={item.href} href={item.href} className="text-sm text-white/70 transition-colors hover:text-white">
+                  {item.label}
+                </a>
+              ))}
             </div>
-
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center space-x-8">
-              <a href="#features" className="text-taxentia-text-slate hover:text-taxentia-navy font-body">Features</a>
-              <a href="#pricing" className="text-taxentia-text-slate hover:text-taxentia-navy font-body">Pricing</a>
-              <a href="#testimonials" className="text-taxentia-text-slate hover:text-taxentia-navy font-body">Testimonials</a>
-              <a href="#faq" className="text-taxentia-text-slate hover:text-taxentia-navy font-body">FAQ</a>
-            </div>
-
-            {/* CTA Buttons */}
-            <div className="hidden md:flex items-center space-x-4">
-              <Button
-                variant="outline"
-                onClick={navigateToAuth}
-                className="border-taxentia-slate text-taxentia-navy hover:bg-taxentia-light-gray"
-              >
-                Sign In
+            <div className="hidden items-center gap-2 md:flex">
+              <Button asChild variant="ghost" className="text-white hover:bg-white/10 hover:text-white">
+                <Link href="/auth">Sign in</Link>
               </Button>
-              <Button
-                onClick={navigateToAuth}
-                className="bg-taxentia-navy hover:bg-blue-900 text-white"
-              >
-                Get Started
+              <Button asChild className="bg-gold text-ink hover:bg-gold/90">
+                <Link href="/auth">Get started</Link>
               </Button>
             </div>
-
-            {/* Mobile Menu Button */}
             <button
-              className="md:hidden p-2"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              type="button"
+              className="-mr-2 flex h-11 w-11 items-center justify-center md:hidden"
+              onClick={() => setMenuOpen((open) => !open)}
+              aria-expanded={menuOpen}
+              aria-label={menuOpen ? "Close menu" : "Open menu"}
             >
-              {mobileMenuOpen ? (
-                <X className="w-6 h-6 text-taxentia-navy" />
-              ) : (
-                <Menu className="w-6 h-6 text-taxentia-navy" />
-              )}
+              {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
           </div>
-
-          {/* Mobile Menu */}
-          {mobileMenuOpen && (
-            <div className="md:hidden pb-4 space-y-3">
-              <a href="#features" className="block text-taxentia-text-slate hover:text-taxentia-navy font-body py-2">Features</a>
-              <a href="#pricing" className="block text-taxentia-text-slate hover:text-taxentia-navy font-body py-2">Pricing</a>
-              <a href="#testimonials" className="block text-taxentia-text-slate hover:text-taxentia-navy font-body py-2">Testimonials</a>
-              <a href="#faq" className="block text-taxentia-text-slate hover:text-taxentia-navy font-body py-2">FAQ</a>
-              <div className="flex gap-2 pt-2">
-                <Button variant="outline" className="flex-1">Sign In</Button>
-                <Button className="flex-1 bg-taxentia-navy text-white">Get Started</Button>
-              </div>
+          {menuOpen && (
+            <div className="space-y-1 border-t border-white/10 pb-4 pt-2 md:hidden">
+              {NAV.map((item) => (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMenuOpen(false)}
+                  className="block py-2.5 text-white/80"
+                >
+                  {item.label}
+                </a>
+              ))}
+              <Button asChild variant="outline" className="mt-2 h-11 w-full border-white/25 bg-transparent text-white hover:bg-white/10 hover:text-white">
+                <Link href="/auth">Sign in</Link>
+              </Button>
             </div>
           )}
-        </div>
-      </nav>
+        </nav>
 
-      {/* Hero Section */}
-      <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 bg-off-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div>
-              <h1 className="font-sans text-display md:text-5xl font-bold text-warm-black mb-6 leading-none">
-                Authoritative Tax Guidance Backed by Federal Authorities
-              </h1>
-              <p className="font-sans text-body lg:text-body-lg text-slate-medium mb-8 leading-relaxed">
-                Get comprehensive tax analysis grounded in IRC, CFR, and IRS guidance — in seconds, not hours. Every answer is cited and confidence-scored for professional use.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Button
-                  onClick={navigateToAuth}
-                  className="bg-taxentia-navy hover:bg-blue-900 text-white px-8 py-6 text-lg font-heading"
-                >
-                  Start Free Trial <ArrowRight className="w-5 h-5 ml-2" />
-                </Button>
-                <Button
-                  variant="outline"
-                  className="border-2 border-taxentia-navy text-taxentia-navy hover:bg-taxentia-light-gray px-8 py-6 text-lg font-heading"
-                >
-                  Watch Demo
-                </Button>
-              </div>
-              <p className="font-body text-sm text-taxentia-text-slate mt-8">
-                ✓ No credit card required · ✓ 4,143+ tax sources · ✓ Weekly updates
-              </p>
-            </div>
-            <div className="bg-taxentia-sky-light rounded-2xl h-96 flex items-center justify-center">
-              <div className="text-center">
-                <svg className="w-24 h-24 mx-auto text-taxentia-sky mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                <p className="text-taxentia-text-slate font-body">Interactive Dashboard</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Problem Visualization Section */}
-      <section className="py-16 sm:py-20 lg:py-32 px-4 sm:px-6 lg:px-8 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12 lg:mb-16">
-            <h2 className="font-sans text-h2 font-bold text-warm-black mb-4">
-              Tax research is complex. Your clients need answers now.
-            </h2>
-            <p className="font-sans text-body lg:text-body-lg text-slate-medium max-w-2xl mx-auto">
-              See how Taxentia helps professionals respond to real tax questions instantly
+        <header className="mx-auto grid max-w-6xl items-center gap-10 px-4 pb-16 pt-8 sm:px-6 lg:grid-cols-[1.05fr_1fr] lg:gap-16 lg:pb-24 lg:pt-16">
+          <div className="animate-rise">
+            <p className="eyebrow text-gold">Federal tax research</p>
+            <h1 className="mt-4 text-[2.75rem] leading-[1.05] tracking-tight sm:text-6xl">
+              Tax answers you can <em className="font-normal text-gold">trace to the source.</em>
+            </h1>
+            <p className="mt-5 max-w-xl text-lg leading-relaxed text-white/75">
+              Ask a federal tax question in plain English. Get a structured answer with citations to the Code,
+              the regulations, and IRS guidance.
             </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-            {taxQuestions.map((q, idx) => (
-              <div
-                key={idx}
-                className="p-4 sm:p-6 border border-taxentia-light-gray rounded-lg hover:shadow-lg transition-shadow"
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Button asChild size="lg" className="h-12 bg-gold px-6 text-base text-ink hover:bg-gold/90">
+                <Link href="/auth">
+                  Get started <ArrowRight className="ml-1" />
+                </Link>
+              </Button>
+              <Button
+                asChild
+                size="lg"
+                variant="outline"
+                className="h-12 border-white/25 bg-transparent px-6 text-base text-white hover:bg-white/10 hover:text-white"
               >
-                <div className="flex items-start gap-4">
-                  <div className="text-3xl flex-shrink-0">{q.avatar}</div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs sm:text-sm font-semibold text-taxentia-gold mb-2">{q.role}</p>
-                    <p className="text-sm sm:text-base text-taxentia-navy font-medium">{q.q}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Key Features Section */}
-      <section id="features" className="py-20 px-4 sm:px-6 lg:px-8 bg-off-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="font-sans text-h2 font-bold text-warm-black mb-4">
-              Why Choose Taxentia?
-            </h2>
-            <p className="font-sans text-body-lg text-slate-medium max-w-2xl mx-auto">
-              Professional-grade tax analysis powered by AI and comprehensive legal authority databases
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* Feature 1 */}
-            <div className="bg-white p-8 rounded-xl border border-slate-200 hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-taxentia-sky/10 rounded-lg flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-taxentia-sky" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-                </svg>
-              </div>
-              <h3 className="font-sans text-h3 font-bold text-warm-black mb-3">
-                Accurate & Reliable
-              </h3>
-              <p className="font-sans text-body text-slate-medium">
-                GPT-4o Mini analysis backed by 4,143+ authoritative tax sources including IRC, CFR, IRS publications, and court rulings.
-              </p>
-            </div>
-
-            {/* Feature 2 */}
-            <div className="bg-white p-8 rounded-xl border border-taxentia-slate hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-taxentia-gold/20 rounded-lg flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-taxentia-gold" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z" />
-                </svg>
-              </div>
-              <h3 className="font-heading text-xl font-bold text-taxentia-navy mb-3">
-                Always Fresh
-              </h3>
-              <p className="font-body text-taxentia-text-slate">
-                Automatic weekly updates of IRS bulletins, regulations, and tax law changes ensure you're always working with current information.
-              </p>
-            </div>
-
-            {/* Feature 3 */}
-            <div className="bg-white p-8 rounded-xl border border-taxentia-slate hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-taxentia-emerald/20 rounded-lg flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-taxentia-emerald" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z" />
-                </svg>
-              </div>
-              <h3 className="font-heading text-xl font-bold text-taxentia-navy mb-3">
-                Comprehensive Coverage
-              </h3>
-              <p className="font-body text-taxentia-text-slate">
-                Covers IRC, CFR regulations, IRS bulletins, rulings, and revenue procedures with AI-powered analysis and structured citations.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-off-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="font-sans text-h2 font-bold text-warm-black mb-4">
-              How Taxentia Works
-            </h2>
-            <p className="font-sans text-body-lg text-slate-medium max-w-2xl mx-auto">
-              Advanced RAG pipeline delivering accurate tax guidance in seconds
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-4 gap-6">
-            {[
-              { number: '1', title: 'Query', desc: 'Submit your tax question' },
-              { number: '2', title: 'Search', desc: 'AI searches 4,143+ sources' },
-              { number: '3', title: 'Analyze', desc: 'GPT-4o generates insights' },
-              { number: '4', title: 'Deliver', desc: 'Get cited, structured answer' },
-            ].map((step) => (
-              <div key={step.number} className="relative">
-                <div className="bg-white p-6 rounded-xl border border-taxentia-slate h-full">
-                  <div className="w-12 h-12 bg-taxentia-navy text-white rounded-full flex items-center justify-center font-heading font-bold text-lg mb-4">
-                    {step.number}
-                  </div>
-                  <h3 className="font-heading text-xl font-bold text-taxentia-navy mb-2">
-                    {step.title}
-                  </h3>
-                  <p className="font-body text-taxentia-text-slate">
-                    {step.desc}
-                  </p>
-                </div>
-                {step.number !== '4' && (
-                  <div className="hidden md:block absolute top-12 -right-6 text-taxentia-sky text-2xl">→</div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Use Cases Section */}
-      <section className="py-16 sm:py-20 lg:py-32 px-4 sm:px-6 lg:px-8 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12 lg:mb-16">
-            <h2 className="font-sans text-h2 font-bold text-warm-black mb-4">
-              Built for tax professionals. Trusted by advisors.
-            </h2>
-            <p className="font-sans text-body lg:text-body-lg text-slate-medium max-w-2xl mx-auto">
-              Real use cases from CPAs, financial advisors, and tax attorneys
-            </p>
-          </div>
-
-          <Tabs value={selectedUseCase} onValueChange={setSelectedUseCase} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-8">
-              {Object.entries(useCases).map(([key, useCase]) => (
-                <TabsTrigger key={key} value={key} className="text-xs sm:text-sm">
-                  {useCase.title.split(" ")[0]}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-
-            {Object.entries(useCases).map(([key, useCase]) => (
-              <TabsContent key={key} value={key} className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
-                  <Card className="bg-taxentia-light-gray border-0">
-                    <CardHeader>
-                      <CardTitle className="text-taxentia-navy">Tax Question</CardTitle>
-                      <CardDescription>{useCase.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="font-body text-sm sm:text-base text-taxentia-navy font-medium mb-4">{useCase.query}</p>
-                      <div className="text-xs sm:text-sm text-taxentia-text-slate font-semibold">{useCase.time}</div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-2 border-taxentia-gold">
-                    <CardHeader>
-                      <CardTitle className="text-taxentia-navy">Taxentia Analysis</CardTitle>
-                      <CardDescription>Authority-backed response with citations</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="font-body text-xs sm:text-sm text-taxentia-navy leading-relaxed mb-4">{useCase.response}</p>
-                      <div>
-                        <p className="text-xs font-semibold text-taxentia-gold mb-2">AUTHORITIES:</p>
-                        <div className="flex flex-wrap gap-2">
-                          {useCase.authorities.map((auth, idx) => (
-                            <span key={idx} className="inline-block bg-taxentia-gold bg-opacity-20 text-taxentia-navy px-2 py-1 rounded text-xs font-medium">
-                              {auth}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </TabsContent>
-            ))}
-          </Tabs>
-        </div>
-      </section>
-
-      {/* Confidence Scoring Section */}
-      <section className="py-16 sm:py-20 lg:py-32 px-4 sm:px-6 lg:px-8 bg-off-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12 lg:mb-16">
-            <h2 className="font-sans text-h2 font-bold text-warm-black mb-4">
-              Transparent confidence. Clear limitations.
-            </h2>
-            <p className="font-sans text-body lg:text-body-lg text-slate-medium max-w-2xl mx-auto">
-              Know exactly how confident the analysis is and when professional review is essential
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
-            {confidenceExamples.map((example, idx) => (
-              <div
-                key={idx}
-                className={`p-6 sm:p-8 rounded-lg border-2 border-taxentia-navy ${example.color} hover:shadow-lg transition-shadow`}
-              >
-                <div className="flex items-center gap-3 mb-4">
-                  <CheckCircle className="w-6 h-6 text-taxentia-navy" />
-                  <div>
-                    <p className="font-semibold text-taxentia-navy">{example.level}</p>
-                    <p className="text-xs sm:text-sm text-taxentia-text-slate">{example.score}</p>
-                  </div>
-                </div>
-                <p className="font-body text-sm text-taxentia-navy font-medium mb-2">{example.description}</p>
-                <p className="text-xs sm:text-sm text-taxentia-text-slate italic">Example: {example.example}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing Section */}
-      <section id="pricing" className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="font-heading text-4xl font-bold text-taxentia-navy mb-4">
-              Simple, Transparent Pricing
-            </h2>
-            <p className="font-body text-lg text-taxentia-text-slate max-w-2xl mx-auto">
-              Choose the plan that fits your needs. All plans include access to our full tax authority database.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* Free Plan */}
-            <div className="bg-white p-8 rounded-xl border border-taxentia-slate">
-              <h3 className="font-heading text-2xl font-bold text-taxentia-navy mb-2">Free</h3>
-              <p className="text-4xl font-bold text-taxentia-navy mb-1">$0</p>
-              <p className="font-body text-taxentia-text-slate mb-6">Perfect to get started</p>
-              <Button variant="outline" className="w-full border-taxentia-slate mb-8">
-                Get Started
+                <a href="#answers">See how answers work</a>
               </Button>
-              <ul className="space-y-3 font-body text-taxentia-text-slate">
-                <li>✓ 5 queries/month</li>
-                <li>✓ Basic tax sources</li>
-                <li>✓ Community support</li>
-              </ul>
-            </div>
-
-            {/* Pro Plan (Most Popular) */}
-            <div className="bg-taxentia-navy text-white p-8 rounded-xl shadow-lg relative transform scale-105">
-              <div className="absolute -top-4 right-4 bg-taxentia-gold text-taxentia-navy px-4 py-1 rounded-full font-heading font-bold text-sm">
-                Most Popular
-              </div>
-              <h3 className="font-heading text-2xl font-bold mb-2">Pro</h3>
-              <p className="text-4xl font-bold mb-1">$29</p>
-              <p className="font-body text-taxentia-sky-light mb-6">per month</p>
-              <Button className="w-full bg-taxentia-gold text-taxentia-navy hover:bg-yellow-500 font-heading mb-8">
-                Start Free Trial
-              </Button>
-              <ul className="space-y-3 font-body">
-                <li>✓ Unlimited queries</li>
-                <li>✓ All tax authorities</li>
-                <li>✓ Priority support</li>
-                <li>✓ Citation export</li>
-                <li>✓ Query history</li>
-              </ul>
-            </div>
-
-            {/* Enterprise Plan */}
-            <div className="bg-white p-8 rounded-xl border border-taxentia-slate">
-              <h3 className="font-heading text-2xl font-bold text-taxentia-navy mb-2">Enterprise</h3>
-              <p className="text-4xl font-bold text-taxentia-navy mb-1">Custom</p>
-              <p className="font-body text-taxentia-text-slate mb-6">For large teams</p>
-              <Button variant="outline" className="w-full border-taxentia-slate mb-8">
-                Contact Sales
-              </Button>
-              <ul className="space-y-3 font-body text-taxentia-text-slate">
-                <li>✓ Dedicated support</li>
-                <li>✓ Custom integrations</li>
-                <li>✓ Team management</li>
-                <li>✓ Advanced analytics</li>
-                <li>✓ SSO & compliance</li>
-              </ul>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* Testimonials Section */}
-      <section id="testimonials" className="py-20 px-4 sm:px-6 lg:px-8 bg-taxentia-light-gray">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="font-heading text-4xl font-bold text-taxentia-navy mb-4">
-              Loved by Tax Professionals
-            </h2>
-            <p className="font-body text-lg text-taxentia-text-slate max-w-2xl mx-auto">
-              See what tax professionals and accountants are saying about Taxentia
-            </p>
+          <div className="animate-rise [animation-delay:120ms]">
+            <SampleAnswer />
           </div>
+        </header>
+      </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              {
-                quote: "Taxentia has become my go-to research tool. The AI analysis saves me hours every week.",
-                author: "Sarah Chen",
-                role: "CPA, Tax Manager",
-                company: "Chen & Associates"
-              },
-              {
-                quote: "Accurate citations and comprehensive authority coverage. Exactly what we needed for our practice.",
-                author: "Michael Rodriguez",
-                role: "Tax Attorney",
-                company: "Rodriguez Legal Group"
-              },
-              {
-                quote: "The weekly updates keep me current on tax law changes. Invaluable for client advisory.",
-                author: "Jessica Williams",
-                role: "Tax Consultant",
-                company: "Williams Financial Advisors"
-              }
-            ].map((testimonial, idx) => (
-              <div key={idx} className="bg-white p-8 rounded-xl border border-taxentia-slate">
-                <div className="flex gap-1 mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <span key={i} className="text-taxentia-gold">★</span>
-                  ))}
-                </div>
-                <p className="font-body text-taxentia-text-slate mb-6 italic">
-                  "{testimonial.quote}"
-                </p>
-                <div>
-                  <p className="font-heading font-bold text-taxentia-navy">
-                    {testimonial.author}
-                  </p>
-                  <p className="font-body text-sm text-taxentia-text-slate">
-                    {testimonial.role}, {testimonial.company}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ Section */}
-      <section id="faq" className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-3xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="font-heading text-4xl font-bold text-taxentia-navy mb-4">
-              Frequently Asked Questions
-            </h2>
-          </div>
-
-          <div className="space-y-4">
-            {[
-              {
-                q: "How accurate are the responses?",
-                a: "Taxentia uses authority-backed analysis with confidence scoring. Every response is grounded in federal tax sources with specific IRC/CFR citations. However, tax analysis can be complex, so we recommend professional review for all client advice."
-              },
-              {
-                q: "Can this replace my tax attorney or CPA?",
-                a: "No. Taxentia is a research and analysis tool designed to complement professional expertise, not replace it. It helps professionals research faster and more comprehensively by providing authority-backed analysis."
-              },
-              {
-                q: "What tax authorities does Taxentia cover?",
-                a: "Complete Internal Revenue Code (Title 26 USC), all Treasury Regulations (Title 26 CFR), IRS Revenue Rulings, Revenue Procedures, Notices, and Bulletins. We maintain weekly updates for new IRS guidance."
-              },
-              {
-                q: "How often is the data updated?",
-                a: "We ingest weekly IRS bulletins automatically and perform comprehensive quarterly updates of all authorities. Emergency updates are issued for critical tax law changes."
-              },
-              {
-                q: "Is my query data private?",
-                a: "Yes. All queries are encrypted end-to-end and never sold or shared. We comply with professional tax data privacy standards and GDPR requirements."
-              },
-              {
-                q: "What if Taxentia's analysis is incorrect?",
-                a: "Confidence scoring helps identify when professional review is essential. Always cite the underlying authorities (IRC sections, CFR regulations) in your work, not Taxentia. We recommend verification through primary sources for high-stakes analyses."
-              }
-            ].map((faq, idx) => (
-              <div key={idx} className="bg-white p-4 sm:p-6 rounded-xl border border-taxentia-slate">
-                <h3 className="font-heading font-bold text-sm sm:text-base text-taxentia-navy flex justify-between items-start">
-                  {faq.q}
-                  <ChevronDown className="w-5 h-5 text-taxentia-sky flex-shrink-0 ml-4" />
-                </h3>
-                <p className="font-body text-xs sm:text-sm text-taxentia-text-slate mt-3">
-                  {faq.a}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Final CTA Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-taxentia-navy text-white">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="font-heading text-4xl font-bold mb-6">
-            Ready to Transform Your Tax Research?
+      <main>
+        {/* Anatomy of an answer */}
+        <section id="answers" className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-24">
+          <p className="eyebrow">Answers</p>
+          <h2 className="mt-3 max-w-2xl text-3xl leading-tight tracking-tight sm:text-[2.5rem]">
+            Every answer reads like a research memo.
           </h2>
-          <p className="font-body text-lg text-taxentia-sky-light mb-8 max-w-2xl mx-auto">
-            Join hundreds of tax professionals using Taxentia for faster, more accurate tax guidance.
-          </p>
-          <Button
-            onClick={navigateToAuth}
-            className="bg-taxentia-gold hover:bg-yellow-500 text-taxentia-navy px-8 py-6 text-lg font-heading"
-          >
-            Start Your Free Trial <ArrowRight className="w-5 h-5 ml-2" />
-          </Button>
-          <p className="font-body text-sm text-taxentia-sky-light mt-6">
-            No credit card required. Full access to all features.
-          </p>
-        </div>
-      </section>
+          <ol className="mt-10 grid border-t border-foreground/80 sm:grid-cols-2 lg:grid-cols-4">
+            {ANSWER_PARTS.map((part, index) => (
+              <li key={part.title} className="border-b py-6 sm:pr-8 lg:border-b-0">
+                <span className="font-mono text-xs text-gold-deep">0{index + 1}</span>
+                <h3 className="mt-3 text-xl">{part.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{part.body}</p>
+              </li>
+            ))}
+          </ol>
 
-      {/* Footer */}
-      <footer className="bg-taxentia-navy text-white py-12 px-4 sm:px-6 lg:px-8 border-t border-taxentia-sky-light/20">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-4 gap-8 mb-8">
+          <div className="mt-12 grid gap-6 rounded-xl border bg-card p-6 sm:p-8 lg:grid-cols-[1fr_2fr] lg:gap-12">
             <div>
-              <div className="flex items-center space-x-2 mb-4">
-                <div className="w-8 h-8 bg-taxentia-sky rounded-lg flex items-center justify-center">
-                  <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                </div>
-                <span className="font-heading font-bold">Taxentia</span>
-              </div>
-              <p className="font-body text-taxentia-sky-light">
-                AI-powered tax guidance for professionals
+              <h3 className="text-2xl leading-snug">Confidence is part of the answer.</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                The score is the model's own assessment. It helps you decide how closely to review an answer, and
+                it doesn't guarantee accuracy.
               </p>
             </div>
-            <div>
-              <h4 className="font-heading font-bold mb-4">Product</h4>
-              <ul className="space-y-2 font-body text-taxentia-sky-light text-sm">
-                <li><a href="#features" className="hover:text-white">Features</a></li>
-                <li><a href="#pricing" className="hover:text-white">Pricing</a></li>
-                <li><a href="#" className="hover:text-white">Docs</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-heading font-bold mb-4">Company</h4>
-              <ul className="space-y-2 font-body text-taxentia-sky-light text-sm">
-                <li><a href="#" className="hover:text-white">About</a></li>
-                <li><a href="#" className="hover:text-white">Blog</a></li>
-                <li><a href="#" className="hover:text-white">Contact</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-heading font-bold mb-4">Legal</h4>
-              <ul className="space-y-2 font-body text-taxentia-sky-light text-sm">
-                <li><a href="#" className="hover:text-white">Privacy</a></li>
-                <li><a href="#" className="hover:text-white">Terms</a></li>
-                <li><a href="#" className="hover:text-white">Disclaimer</a></li>
-              </ul>
-            </div>
+            <dl className="grid gap-6 sm:grid-cols-3">
+              {CONFIDENCE_BANDS.map((band) => (
+                <div key={band.label}>
+                  <div className="h-1 rounded-full bg-muted">
+                    <div className={`h-1 rounded-full ${band.bar} ${band.width}`} />
+                  </div>
+                  <dt className="mt-3 flex items-baseline justify-between gap-2 font-medium">
+                    {band.label}
+                    <span className="font-mono text-xs font-normal text-muted-foreground">{band.range}</span>
+                  </dt>
+                  <dd className="mt-1 text-sm leading-relaxed text-muted-foreground">{band.body}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
+        </section>
 
-          <div className="border-t border-taxentia-sky-light/20 pt-8">
-            <p className="font-body text-taxentia-sky-light text-sm text-center">
-              © 2025 Taxentia. All rights reserved. | AI-powered tax guidance backed by authoritative sources
+        {/* Sources */}
+        <section id="sources" className="border-y bg-card">
+          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-24">
+            <p className="eyebrow">Sources</p>
+            <h2 className="mt-3 max-w-2xl text-3xl leading-tight tracking-tight sm:text-[2.5rem]">
+              Built on primary federal sources.
+            </h2>
+            <ul className="mt-10 border-t border-foreground/80">
+              {SOURCES.map((source) => (
+                <li key={source.cite} className="grid gap-2 border-b py-5 sm:grid-cols-[9rem_1fr_1.4fr] sm:items-baseline sm:gap-6">
+                  <span className="font-mono text-sm text-gold-deep">{source.cite}</span>
+                  <span className="font-serif text-xl">{source.name}</span>
+                  <span className="text-sm leading-relaxed text-muted-foreground">{source.body}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        {/* How it works */}
+        <section id="how" className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-24">
+          <p className="eyebrow">How it works</p>
+          <h2 className="mt-3 max-w-2xl text-3xl leading-tight tracking-tight sm:text-[2.5rem]">
+            The model answers from what it retrieves.
+          </h2>
+          <ol className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+            {STEPS.map((step, index) => (
+              <li key={step.title} className="border-l border-foreground/20 pl-5">
+                <span className="font-mono text-xs text-muted-foreground">Step {index + 1}</span>
+                <h3 className="mt-2 text-xl">{step.title}</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{step.body}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        {/* FAQ */}
+        <section id="faq" className="border-t bg-card">
+          <div className="mx-auto grid max-w-6xl gap-8 px-4 py-16 sm:px-6 lg:grid-cols-[1fr_2fr] lg:gap-16 lg:py-24">
+            <div>
+              <p className="eyebrow">FAQ</p>
+              <h2 className="mt-3 text-3xl leading-tight tracking-tight sm:text-[2.5rem]">Before you rely on it.</h2>
+            </div>
+            <Accordion type="single" collapsible className="border-t border-foreground/80">
+              {FAQS.map((faq) => (
+                <AccordionItem key={faq.q} value={faq.q}>
+                  <AccordionTrigger className="py-5 text-left font-sans text-base font-medium hover:no-underline">
+                    {faq.q}
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-5 text-[15px] leading-relaxed text-muted-foreground">
+                    {faq.a}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
+        </section>
+      </main>
+
+      {/* Closing call to action and footer */}
+      <footer className="ruled bg-ink text-white">
+        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-20">
+          <h2 className="max-w-2xl text-4xl leading-tight tracking-tight sm:text-5xl">
+            Start with your next tax question.
+          </h2>
+          <Button asChild size="lg" className="mt-8 h-12 w-full bg-gold px-6 text-base text-ink hover:bg-gold/90 sm:w-auto">
+            <Link href="/auth">
+              Get started <ArrowRight className="ml-1" />
+            </Link>
+          </Button>
+          <div className="mt-16 flex flex-col gap-4 border-t border-white/15 pt-6 sm:flex-row sm:items-center sm:justify-between">
+            <Logo inverted />
+            <p className="max-w-xl text-xs leading-relaxed text-white/60 sm:text-right">
+              © {new Date().getFullYear()} Taxentia. A research tool that doesn't provide tax or legal advice.
             </p>
           </div>
         </div>

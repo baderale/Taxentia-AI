@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -60,14 +59,10 @@ export default function AuthSignup({ onSuccess, onSwitchToLogin }: SignupProps) 
   const displayError = localError || error;
 
   return (
-    <Card className="w-full max-w-md shadow-lg border-taxentia-slate">
-      <CardHeader className="space-y-2 pb-6">
-        <CardTitle className="font-heading text-h2 text-taxentia-navy">Create Account</CardTitle>
-        <CardDescription className="font-body text-body text-taxentia-text-slate">
-          Join Taxentia for AI-powered tax guidance
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <div className="w-full">
+      <h1 className="text-4xl tracking-tight">Create Account</h1>
+      <p className="mt-2 text-muted-foreground">Start researching federal tax questions</p>
+      <div className="mt-8">
         <form onSubmit={handleSubmit} className="space-y-4">
           {displayError && (
             <Alert variant="destructive">
@@ -77,69 +72,78 @@ export default function AuthSignup({ onSuccess, onSwitchToLogin }: SignupProps) 
           )}
 
           <div className="space-y-2">
-            <label className="font-body text-sm font-medium text-taxentia-navy">Email</label>
+            <label htmlFor="email" className="text-sm font-medium">Email</label>
             <Input
+              id="email"
               type="email"
+              autoComplete="email"
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
-              className="font-body border-taxentia-slate focus:ring-2 focus:ring-taxentia-sky focus:border-taxentia-sky"
+              className="h-11 bg-card"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="font-body text-sm font-medium text-taxentia-navy">Username</label>
+            <label htmlFor="username" className="text-sm font-medium">Username</label>
             <Input
+              id="username"
               type="text"
               placeholder="your_username"
+              autoComplete="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={loading}
-              className="font-body border-taxentia-slate focus:ring-2 focus:ring-taxentia-sky focus:border-taxentia-sky"
+              className="h-11 bg-card"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="font-body text-sm font-medium text-taxentia-navy">Full Name (Optional)</label>
+            <label htmlFor="fullName" className="text-sm font-medium">Full name (optional)</label>
             <Input
+              id="fullName"
               type="text"
               placeholder="John Doe"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               disabled={loading}
-              className="font-body border-taxentia-slate focus:ring-2 focus:ring-taxentia-sky focus:border-taxentia-sky"
+              className="h-11 bg-card"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="font-body text-sm font-medium text-taxentia-navy">Password</label>
+            <label htmlFor="password" className="text-sm font-medium">Password</label>
             <Input
+              id="password"
               type="password"
+              autoComplete="new-password"
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
-              className="font-body border-taxentia-slate focus:ring-2 focus:ring-taxentia-sky focus:border-taxentia-sky"
+              className="h-11 bg-card"
             />
-            <p className="font-body text-xs text-taxentia-text-slate">At least 8 characters</p>
+            <p className="text-xs text-muted-foreground">At least 8 characters</p>
           </div>
 
           <div className="space-y-2">
-            <label className="font-body text-sm font-medium text-taxentia-navy">Confirm Password</label>
+            <label htmlFor="confirmPassword" className="text-sm font-medium">Confirm password</label>
             <Input
+              id="confirmPassword"
               type="password"
+              autoComplete="new-password"
               placeholder="••••••••"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               disabled={loading}
-              className="font-body border-taxentia-slate focus:ring-2 focus:ring-taxentia-sky focus:border-taxentia-sky"
+              className="h-11 bg-card"
             />
           </div>
 
           <Button
             type="submit"
-            className="w-full bg-taxentia-sky hover:bg-taxentia-sky-light text-white font-heading font-semibold py-6 text-base shadow-md transition-colors"
+            className="h-11 w-full text-[15px]"
             disabled={loading}
           >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -147,17 +151,17 @@ export default function AuthSignup({ onSuccess, onSwitchToLogin }: SignupProps) 
           </Button>
 
           <div className="text-center text-sm pt-2">
-            <span className="font-body text-taxentia-text-slate">Already have an account? </span>
+            <span className="text-muted-foreground">Already have an account? </span>
             <button
               type="button"
               onClick={onSwitchToLogin}
-              className="font-body text-taxentia-sky hover:text-taxentia-navy hover:underline font-semibold"
+              className="inline-flex min-h-11 items-center font-medium text-primary underline-offset-4 hover:underline"
             >
               Sign in
             </button>
           </div>
         </form>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

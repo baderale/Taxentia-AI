@@ -1,136 +1,125 @@
-import ChatInterface from "../components/chat-interface";
-import QueryHistory from "../components/query-history";
-import CitationsPanel from "../components/citations-panel";
-import Dashboard from "../components/dashboard";
-import SettingsPanel from "../components/settings-panel";
 import { useState } from "react";
-import { Scale, User, ChevronLeft, MessageSquare, BarChart3 } from "lucide-react";
+import { BarChart3, Menu, MessageSquareText, PanelLeft, Plus } from "lucide-react";
+import ChatInterface from "@/components/chat-interface";
+import QueryHistory from "@/components/query-history";
+import Dashboard from "@/components/dashboard";
+import UserMenu from "@/components/user-menu";
+import { Logo } from "@/components/brand";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/lib/auth-context";
-import type { TaxQuery, TaxResponse } from "@shared/schema";
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
+import type { TaxQuery } from "@shared/schema";
+
+type View = "chat" | "dashboard";
+
+const VIEWS: { id: View; label: string; icon: typeof BarChart3 }[] = [
+  { id: "chat", label: "Research", icon: MessageSquareText },
+  { id: "dashboard", label: "Activity", icon: BarChart3 },
+];
 
 export default function Home() {
-  const { user } = useAuth();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [citationsPanelOpen, setCitationsPanelOpen] = useState(false);
-  const [selectedQuery, setSelectedQuery] = useState<string | null>(null);
-  const [currentView, setCurrentView] = useState<'chat' | 'dashboard'>('chat');
-  const [currentResponse, setCurrentResponse] = useState<TaxQuery | null>(null);
+  const isMobile = useIsMobile();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [view, setView] = useState<View>("chat");
+  const [current, setCurrent] = useState<TaxQuery | null>(null);
 
-  const handleSelectQuery = (query: TaxQuery) => {
-    setSelectedQuery(query.id);
-    setCurrentResponse(query);
-    setCurrentView('chat'); // Switch to chat view when selecting a query
+  const openQuery = (query: TaxQuery) => {
+    setCurrent(query);
+    setView("chat");
+    setDrawerOpen(false);
   };
 
-  return (
-    <div className="min-h-screen bg-taxentia-bg" data-testid="home-page">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm fixed top-0 left-0 right-0 z-50" data-testid="header">
-        <div className="flex items-center justify-between px-6 py-4">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-taxentia-navy rounded-lg flex items-center justify-center" data-testid="logo">
-                <Scale className="text-white w-5 h-5" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-taxentia-navy" data-testid="app-title">Taxentia.ai</h1>
-                <p className="text-sm text-gray-600" data-testid="app-tagline">Smarter Tax Intelligence for Professionals</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            {/* Navigation */}
-            <div className="flex items-center space-x-2 bg-gray-100 p-1 rounded-lg">
-              <Button
-                variant={currentView === 'chat' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setCurrentView('chat')}
-                className="px-3 py-1.5"
-              >
-                <MessageSquare className="w-4 h-4 mr-2" />
-                Chat
-              </Button>
-              <Button
-                variant={currentView === 'dashboard' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setCurrentView('dashboard')}
-                className="px-3 py-1.5"
-              >
-                <BarChart3 className="w-4 h-4 mr-2" />
-                Analytics
-              </Button>
-            </div>
-            
-            {/* Subscription Tier Badge */}
-            <div className="bg-taxentia-gold text-white px-3 py-1 rounded-full text-sm font-medium" data-testid="subscription-badge">
-              {user?.tier === 'pro' ? 'Pro Plan' : user?.tier === 'enterprise' ? 'Enterprise' : 'Free Plan'}
-            </div>
+  const startNew = () => {
+    setCurrent(null);
+    setView("chat");
+    setDrawerOpen(false);
+  };
 
-            {/* User Menu */}
-            <div className="flex items-center space-x-2" data-testid="user-menu">
-              <SettingsPanel />
-              <div className="w-8 h-8 bg-taxentia-blue rounded-full flex items-center justify-center">
-                <User className="text-white w-4 h-4" />
-              </div>
-              <span className="text-sm font-medium" data-testid="username">
-                {user?.fullName || user?.username || 'User'}
-              </span>
-            </div>
-          </div>
+  const historyPanel = (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="p-3">
+        <Button onClick={startNew} variant="outline" className="h-10 w-full justify-start bg-card" data-testid="button-new-research">
+          <Plus /> New research
+        </Button>
+      </div>
+      <QueryHistory onSelectQuery={openQuery} selectedQuery={current?.id ?? null} />
+    </div>
+  );
+
+  return (
+    <div className="flex h-[100dvh] flex-col" data-testid="home-page">
+      <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b bg-card px-2 sm:px-3" data-testid="header">
+        <div className="flex items-center gap-1 sm:gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-11 w-11 md:hidden"
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Open history"
+            data-testid="button-open-history"
+          >
+            <Menu />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="hidden h-9 w-9 md:inline-flex"
+            onClick={() => setSidebarOpen((open) => !open)}
+            aria-label={sidebarOpen ? "Hide history" : "Show history"}
+            aria-expanded={sidebarOpen}
+            data-testid="button-toggle-sidebar"
+          >
+            <PanelLeft />
+          </Button>
+          <Logo className="[&>span:last-child]:hidden sm:[&>span:last-child]:inline" />
         </div>
+
+        <nav className="flex rounded-lg bg-muted p-0.5" aria-label="Views">
+          {VIEWS.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setView(id)}
+              aria-current={view === id ? "page" : undefined}
+              className={cn(
+                "flex h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
+                view === id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+              )}
+              data-testid={`nav-${id}`}
+            >
+              <Icon className="hidden h-4 w-4 sm:block" />
+              {label}
+            </button>
+          ))}
+        </nav>
+
+        <UserMenu />
       </header>
 
-      <div className="flex flex-col md:flex-row pt-16">
-        {/* Sidebar - Query History */}
-        <div 
-          className={`${sidebarCollapsed ? 'w-16 md:w-16' : 'w-full md:w-80'} bg-white border-r border-gray-200 flex flex-col transition-all duration-300 custom-scrollbar ${sidebarCollapsed ? '' : 'md:max-h-screen'}`}
-          data-testid="sidebar"
-        >
-          <div className="p-4 border-b border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              {!sidebarCollapsed && (
-                <h2 className="font-semibold text-gray-900" data-testid="sidebar-title">Query History</h2>
-              )}
-              <button
-                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                className="text-gray-500 hover:text-gray-700 p-1"
-                data-testid="button-toggle-sidebar"
-              >
-                <ChevronLeft className={`w-4 h-4 transition-transform ${sidebarCollapsed ? 'rotate-180' : ''}`} />
-              </button>
-            </div>
-            
-            {!sidebarCollapsed && (
-              <QueryHistory
-                onSelectQuery={handleSelectQuery}
-                selectedQuery={selectedQuery}
-              />
-            )}
-          </div>
-        </div>
+      <div className="flex min-h-0 flex-1">
+        {sidebarOpen && !isMobile && (
+          <aside className="hidden w-72 shrink-0 border-r md:block" data-testid="sidebar">
+            {historyPanel}
+          </aside>
+        )}
 
-        {/* Main Content Area */}
-        <div className="flex-1 bg-white">
-          {currentView === 'chat' ? (
-            <ChatInterface
-              selectedQuery={selectedQuery}
-              onCitationsToggle={() => setCitationsPanelOpen(!citationsPanelOpen)}
-              currentResponse={currentResponse}
-              setCurrentResponse={setCurrentResponse}
-            />
+        <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
+          <SheetContent side="left" className="w-[86vw] max-w-sm bg-background p-0 pt-10">
+            <SheetTitle className="sr-only">Research history</SheetTitle>
+            <SheetDescription className="sr-only">Search and reopen your earlier questions.</SheetDescription>
+            {historyPanel}
+          </SheetContent>
+        </Sheet>
+
+        <main className="min-w-0 flex-1">
+          {view === "chat" ? (
+            <ChatInterface currentResponse={current} setCurrentResponse={setCurrent} />
           ) : (
-            <Dashboard />
+            <Dashboard onOpenQuery={openQuery} />
           )}
-        </div>
-
-        {/* Citations Panel (Floating) */}
-        <CitationsPanel
-          isOpen={citationsPanelOpen}
-          onClose={() => setCitationsPanelOpen(false)}
-          authorities={currentResponse?.response ? (currentResponse.response as TaxResponse).authority : []}
-        />
+        </main>
       </div>
     </div>
   );

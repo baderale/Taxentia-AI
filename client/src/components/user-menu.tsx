@@ -1,4 +1,7 @@
+import { LogOut } from 'lucide-react';
+import { useLocation } from 'wouter';
 import { useAuth } from '@/lib/auth-context';
+import { queryClient } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -8,9 +11,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { LogOut, Settings, User } from 'lucide-react';
-import { useLocation } from 'wouter';
 
 export default function UserMenu() {
   const { user, logout } = useAuth();
@@ -20,12 +20,14 @@ export default function UserMenu() {
 
   const handleLogout = async () => {
     await logout();
+    queryClient.clear(); // The next person to sign in must not see this history
     setLocation('/auth');
   };
 
-  const initials = (user.fullName || user.username)
+  const name = user.fullName || user.username;
+  const initials = name
     .split(' ')
-    .map(n => n[0])
+    .map((part) => part[0])
     .join('')
     .toUpperCase()
     .slice(0, 2);
@@ -33,41 +35,24 @@ export default function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-          <Avatar className="h-10 w-10">
-            <AvatarFallback className="bg-blue-100 text-blue-900 font-semibold">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
+        <Button variant="ghost" className="h-11 gap-2 px-1.5 sm:px-2" aria-label="Account menu" data-testid="user-menu">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
+            {initials}
+          </span>
+          <span className="hidden max-w-36 truncate text-sm font-medium sm:block" data-testid="username">
+            {name}
+          </span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuLabel className="flex flex-col space-y-1">
-          <p className="text-sm font-medium">{user.fullName || user.username}</p>
-          <p className="text-xs text-gray-500">{user.email}</p>
+      <DropdownMenuContent align="end" className="w-60">
+        <DropdownMenuLabel className="font-normal">
+          <p className="truncate text-sm font-medium">{name}</p>
+          <p className="truncate text-xs text-muted-foreground">{user.email}</p>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={() => setLocation('/profile')}
-          className="flex items-center"
-        >
-          <User className="mr-2 h-4 w-4" />
-          <span>Profile</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => setLocation('/settings')}
-          className="flex items-center"
-        >
-          <Settings className="mr-2 h-4 w-4" />
-          <span>Settings</span>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={handleLogout}
-          className="flex items-center text-red-600"
-        >
+        <DropdownMenuItem onClick={handleLogout} className="min-h-10 text-destructive focus:text-destructive">
           <LogOut className="mr-2 h-4 w-4" />
-          <span>Sign Out</span>
+          Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

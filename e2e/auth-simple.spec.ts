@@ -14,7 +14,7 @@ test.describe('Authentication Flow - Simple Tests', () => {
     await expect(page).toHaveTitle(/Taxentia/);
 
     // Click Get Started to go to auth page
-    await page.getByRole('button', { name: /start free trial/i }).first().click();
+    await page.getByRole('button', { name: /get started/i }).first().click();
     await expect(page).toHaveURL(/\/auth/);
 
     // Switch to signup
