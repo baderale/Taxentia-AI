@@ -15,7 +15,7 @@
 **Still open**
 - Replace the Internal Revenue Code load. The run in the app container is incomplete by design, as described under "Internal Revenue Code load" below.
 - Test sign-up and a real tax question on both addresses
-- Deploy the account storage fix and the redesigned interface, which are on the branch but not live yet. Deploy only after the Code load finishes, because a redeploy stops it and it would have to start over.
+- Deploy the account storage fix and the redesigned interface, which are on the branch but not live yet. A redeploy stops the running Code load, which is acceptable once the replacement fetcher is ready.
 - Confirm the weekly job's first scheduled run
 - Set a monthly spending limit on the OpenRouter key
 
