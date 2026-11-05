@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - Internal Revenue Code load and citations (2026-11-05)
+- The Code now loads from the official House file in about 14 minutes, including sections with letters such as §199A and §280A. The release is found automatically
+- Removed the Cornell LII fetcher, which skipped those sections and took about 27 hours
+- The House parser now finds sections at any depth and skips repealed sections, editorial notes and source credits
+- Each retrieved passage is labeled with its citation, and the model is told to cite only those sources
+- Answers no longer fail validation because of numeric chunk IDs, null fields, unknown source types or long conclusions
+
 ### Known Issues (2026-11-05)
-- The Cornell LII fetcher skips Internal Revenue Code sections with letters, such as §199A and §280A, and saves nothing until it finishes
-- The House fetcher uses an outdated download address and skips sections inside subparts
+- Qdrant point IDs are 32-bit hashes, so a few chunks overwrite each other (about 31 of 7,309 Code chunks)
 
 ### Fixed - Accounts now persist (2026-11-05)
 - Accounts and saved questions were held in memory by routes and login, and were lost on every restart. The app now uses PostgreSQL for them

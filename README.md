@@ -196,7 +196,7 @@ npm run inspect:qdrant      # View ingested data statistics
 **Current Deployment (November 5, 2026):**
 - CFR Title 26: ✅ Loaded (6,015 regulations → 20,016 chunks). The fetcher problem listed below is fixed
 - IRS Bulletins: ✅ Loaded (26 documents → 1,851 chunks)
-- USC Title 26: ⚠️ Not loaded yet. The running job skips sections with letters, such as §199A and §280A, and saves nothing until it ends. See [RAILWAY_DEPLOYMENT.md](RAILWAY_DEPLOYMENT.md)
+- USC Title 26: ✅ Loaded from the official House file (1,900 current sections → 7,309 chunks, about $0.06)
 
 **Last Recorded Ingestion Status (Nov 2025 deployment, not the current one):**
 - USC Title 26: ✅ Complete (1,612 sections → 3,730 chunks)
@@ -577,7 +577,7 @@ open http://localhost:6333/dashboard
 
 ### **Current Production Architecture (Railway)**
 
-**Status (November 5, 2026):** Redeployed on Railway. The site is up at https://www.taxentia.ai, and `taxentia.ai` forwards to it. The OpenRouter key is active, and the Treasury Regulations and IRS Bulletins are loaded. The Internal Revenue Code is not loaded yet and its fetchers need a fix. A real tax question has **not been tested end to end yet**. The redesigned interface is on this branch but not deployed. The original November 2025 deployment is no longer active.
+**Status (November 5, 2026):** Redeployed on Railway. The site is up at https://www.taxentia.ai, and `taxentia.ai` forwards to it. The OpenRouter key is active, and the Internal Revenue Code, Treasury Regulations and IRS Bulletins are loaded. The redesigned interface, Postgres account storage and the `/admin` user page are live. A real tax question has **not been tested end to end yet** on the live site. The original November 2025 deployment is no longer active.
 
 ```
 Railway project: taxentia (Hobby plan)
@@ -608,11 +608,11 @@ LLM calls go through OpenRouter, using `openai/gpt-4o-mini` for answers and `ope
 
 ### **Users**
 
-Accounts and saved questions are stored in PostgreSQL once the current branch is deployed. People can sign up at `/auth?mode=signup`, and an admin can create users or reset passwords at `/admin` with `ADMIN_SECRET`. See [RAILWAY_DEPLOYMENT.md](RAILWAY_DEPLOYMENT.md).
+Accounts and saved questions are stored in PostgreSQL. People can sign up at `/auth?mode=signup`, and an admin can create users or reset passwords at `/admin` with `ADMIN_SECRET`. See [RAILWAY_DEPLOYMENT.md](RAILWAY_DEPLOYMENT.md).
 
 ### **Interface**
 
-The November 2026 redesign covers the landing, sign-in, research, answer and activity screens, on desktop and phones. Design rules for contributors are in [CLAUDE.md](CLAUDE.md#interface-design). It has been tested in a browser with mocked API responses, and still needs a test against a real server.
+The November 2026 redesign covers the landing, sign-in, research, answer and activity screens, on desktop and phones. Design rules for contributors are in [CLAUDE.md](CLAUDE.md#interface-design). It is deployed. Browser tests used mocked API responses, and a test against the live server is still open.
 
 ### **Development Workflow**
 

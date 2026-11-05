@@ -4,20 +4,19 @@
 
 **Done**
 - Railway project `taxentia` on the Hobby plan, with `taxentia`, `qdrant`, `Postgres` and `taxentia-cron-irb` services
-- Database tables created
-- `www.taxentia.ai` connected through a GoDaddy CNAME, with a valid certificate
-- `taxentia.ai` forwarded to `https://www.taxentia.ai` with a GoDaddy 301
+- `www.taxentia.ai` connected through a GoDaddy CNAME, with a valid certificate, and `taxentia.ai` forwarded to it with a GoDaddy 301
 - `SESSION_SECRET`, `ADMIN_SECRET` and the OpenRouter key set
-- Treasury Regulations and IRS Bulletins loaded
+- Redesigned interface, Postgres account storage and the `/admin` user page deployed on November 5, 2026
+- Tax data loaded: Internal Revenue Code (1,900 current sections, 7,309 chunks, about $0.06, 14 minutes), Treasury Regulations and IRS Bulletins. Qdrant holds 29,121 vectors
+- Answers now receive each passage labeled with its citation, and are told to cite only those sources
 - Admin routes locked behind `ADMIN_SECRET`, and saved queries limited to their owner
 - Weekly IRS bulletin job set up: `npm run ingest:irb -- 5`, Mondays at 08:00 UTC, no automatic restart
 
 **Still open**
-- Replace the Internal Revenue Code load. The run in the app container is incomplete by design, as described under "Internal Revenue Code load" below.
-- Test sign-up and a real tax question on both addresses
-- Deploy the account storage fix and the redesigned interface, which are on the branch but not live yet. A redeploy stops the running Code load, which is acceptable once the replacement fetcher is ready.
+- Test a real tax question end to end with an account on the live site
 - Confirm the weekly job's first scheduled run
 - Set a monthly spending limit on the OpenRouter key
+- Qdrant point IDs are 32-bit hashes of chunk IDs, so a few chunks overwrite each other. About 31 of 7,309 Code chunks were lost this way. Switching to UUID-based IDs would fix it, but needs a full reload
 
 **OpenRouter settings on the `taxentia` service**
 ```bash
@@ -35,18 +34,17 @@ EMBEDDING_PROVIDER_IGNORE=openai
 - IRS Bulletins: 26 documents, 1,851 chunks, about $0.02
 - Each answer: estimated $0.0015
 
-**Internal Revenue Code load** (checked November 5, 2026)
-- The running Cornell LII job counts whole numbers from 1 to 9834, so it skips sections with letters, such as §199A, §280A, §409A and §45Q. The official file has 245 of these among its 2,149 sections.
-- It keeps everything in memory and saves nothing until the end, at about 27 hours. A restart loses all of it, and no Code text is in Qdrant yet.
-- The House fallback in `scripts/fetchers/usc-fetcher.ts` has two bugs. Its download address points to an old release (119-36) and returns 404, while the current release is 119-136. Its parser doesn't read `subpart` levels, so it finds 1,614 of the 2,149 sections.
-- Recommended fix: find the current release automatically, read subparts, and make the House file the primary source. The file is about 8 MB, so the load should take minutes. Estimated embedding cost is under $0.15.
+**Loading the Internal Revenue Code**
+- `npm run ingest:usc` downloads the official Title 26 file from uscode.house.gov and finds the current release on the download page, falling back to the release set in `scripts/fetchers/usc-fetcher.ts`
+- It skips repealed, renumbered, omitted and reserved sections, plus editorial notes, and labels each chunk with its section number
+- To run it on Railway, POST `{"type":"usc","secret":"<ADMIN_SECRET>"}` to `/api/taxentia/admin/ingest`. A redeploy stops a running load
+- The earlier Cornell LII job was removed, because it skipped sections with letters and took about 27 hours
 
-**Managing users** (after the next deploy)
+**Managing users**
 - **People sign up themselves** at `https://www.taxentia.ai/auth?mode=signup`
 - **Create or reset a user** at `https://www.taxentia.ai/admin`. The admin key is the `ADMIN_SECRET` variable on the `taxentia` service in Railway. Generated passwords are shown once
 - **View the tables** in Railway under the `Postgres` service, on the Data tab: `users`, `tax_queries` and `user_sessions`
 - Passwords are stored only as bcrypt hashes, and saved questions and answers are in `tax_queries`
-- The current live version keeps accounts in memory, so any account created before this deploy is lost when it goes out
 
 **Things to know**
 - This project ignored `railway.json`. The start command and health check are set directly on the service, so changing the file has no effect here.
