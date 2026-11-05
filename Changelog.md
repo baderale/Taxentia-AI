@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Known Issues (2026-11-05)
+- The Cornell LII fetcher skips Internal Revenue Code sections with letters, such as §199A and §280A, and saves nothing until it finishes
+- The House fetcher uses an outdated download address and skips sections inside subparts
+
 ### Fixed - Accounts now persist (2026-11-05)
 - Accounts and saved questions were held in memory by routes and login, and were lost on every restart. The app now uses PostgreSQL for them
 - Emails are stored and matched in lowercase, so capitalization no longer affects sign-in

@@ -148,7 +148,7 @@ Taxentia includes custom TypeScript fetchers that download and parse official ta
 
 | Source | Fetcher | Content | Status |
 |--------|---------|---------|--------|
-| **US Code Title 26** | `usc-fetcher.ts` | Internal Revenue Code (1,612 sections) | ✅ Production-ready |
+| **US Code Title 26** | `usc-fetcher.ts`, `cornell-lii-fetcher.ts` | Internal Revenue Code (2,149 sections in the official file) | ⚠️ Incomplete, needs the fix in the deployment guide |
 | **CFR Title 26** | `cfr-fetcher.ts` | Treasury Regulations (full title) | ✅ Production-ready |
 | **IRS Bulletins** | `irb-fetcher.ts` | Revenue Rulings, Procedures, Notices, Treasury Decisions | ✅ Production-ready |
 
@@ -196,7 +196,7 @@ npm run inspect:qdrant      # View ingested data statistics
 **Current Deployment (November 5, 2026):**
 - CFR Title 26: ✅ Loaded (6,015 regulations → 20,016 chunks). The fetcher problem listed below is fixed
 - IRS Bulletins: ✅ Loaded (26 documents → 1,851 chunks)
-- USC Title 26: ⏳ Loading from Cornell LII, one section number every 10 seconds
+- USC Title 26: ⚠️ Not loaded yet. The running job skips sections with letters, such as §199A and §280A, and saves nothing until it ends. See [RAILWAY_DEPLOYMENT.md](RAILWAY_DEPLOYMENT.md)
 
 **Last Recorded Ingestion Status (Nov 2025 deployment, not the current one):**
 - USC Title 26: ✅ Complete (1,612 sections → 3,730 chunks)
@@ -577,7 +577,7 @@ open http://localhost:6333/dashboard
 
 ### **Current Production Architecture (Railway)**
 
-**Status (November 5, 2026):** Redeployed on Railway. The site is up at https://www.taxentia.ai, and `taxentia.ai` forwards to it. The OpenRouter key is active, and the Treasury Regulations and IRS Bulletins are loaded. The Internal Revenue Code is still loading. A real tax question has **not been tested end to end yet**. The redesigned interface is on this branch but not deployed. The original November 2025 deployment is no longer active.
+**Status (November 5, 2026):** Redeployed on Railway. The site is up at https://www.taxentia.ai, and `taxentia.ai` forwards to it. The OpenRouter key is active, and the Treasury Regulations and IRS Bulletins are loaded. The Internal Revenue Code is not loaded yet and its fetchers need a fix. A real tax question has **not been tested end to end yet**. The redesigned interface is on this branch but not deployed. The original November 2025 deployment is no longer active.
 
 ```
 Railway project: taxentia (Hobby plan)

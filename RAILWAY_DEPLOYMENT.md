@@ -13,7 +13,7 @@
 - Weekly IRS bulletin job set up: `npm run ingest:irb -- 5`, Mondays at 08:00 UTC, no automatic restart
 
 **Still open**
-- The Internal Revenue Code load is still running inside the app container. It requests sections 1-9834 from Cornell LII at one every 10 seconds, so it can take about 27 hours. 404s on section numbers that don't exist are normal.
+- Replace the Internal Revenue Code load. The run in the app container is incomplete by design, as described under "Internal Revenue Code load" below.
 - Test sign-up and a real tax question on both addresses
 - Deploy the account storage fix and the redesigned interface, which are on the branch but not live yet. Deploy only after the Code load finishes, because a redeploy stops it and it would have to start over.
 - Confirm the weekly job's first scheduled run
@@ -34,6 +34,12 @@ EMBEDDING_PROVIDER_IGNORE=openai
 - Treasury Regulations: 6,015 regulations, 20,016 chunks, about $0.16
 - IRS Bulletins: 26 documents, 1,851 chunks, about $0.02
 - Each answer: estimated $0.0015
+
+**Internal Revenue Code load** (checked November 5, 2026)
+- The running Cornell LII job counts whole numbers from 1 to 9834, so it skips sections with letters, such as §199A, §280A, §409A and §45Q. The official file has 245 of these among its 2,149 sections.
+- It keeps everything in memory and saves nothing until the end, at about 27 hours. A restart loses all of it, and no Code text is in Qdrant yet.
+- The House fallback in `scripts/fetchers/usc-fetcher.ts` has two bugs. Its download address points to an old release (119-36) and returns 404, while the current release is 119-136. Its parser doesn't read `subpart` levels, so it finds 1,614 of the 2,149 sections.
+- Recommended fix: find the current release automatically, read subparts, and make the House file the primary source. The file is about 8 MB, so the load should take minutes. Estimated embedding cost is under $0.15.
 
 **Managing users** (after the next deploy)
 - **People sign up themselves** at `https://www.taxentia.ai/auth?mode=signup`
