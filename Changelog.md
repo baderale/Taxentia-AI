@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - Accounts now persist (2026-11-05)
+- Accounts and saved questions were held in memory by routes and login, and were lost on every restart. The app now uses PostgreSQL for them
+- Emails are stored and matched in lowercase, so capitalization no longer affects sign-in
+- Confidence scores are rounded before saving, because the database column holds whole numbers
+
+### Added - User management (2026-11-05)
+- `/admin` page, protected by `ADMIN_SECRET`, to list users, see question counts, create users, and reset passwords
+- "Get started" now opens the sign-up form directly
+
+### Security - Admin access (2026-11-05)
+- Admin secret checks use a constant-time comparison, and lock out an address for 15 minutes after 10 failed attempts
+- Responses from admin routes are never written to the logs, because they can contain temporary passwords
+
 ### Changed - Interface redesign (2026-11-05)
 - Redesigned the landing, sign-in, research, answer, and activity screens, including phone layouts
 - New visual system: Newsreader, IBM Plex Sans, and IBM Plex Mono, with colors stored as RGB channels so Tailwind opacity modifiers work

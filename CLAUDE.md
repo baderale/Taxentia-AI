@@ -69,6 +69,11 @@ The system generates structured tax analysis with:
 - `ADMIN_SECRET`: Required for admin routes, which reject every request when it is unset
 - `DATABASE_URL`: PostgreSQL connection string
 
+### Accounts and Storage
+- `storage` in `server/storage.ts` is `PostgresStorage`. `MemStorage` is no longer used by the app, so don't point routes or login at it
+- Admin user management is at `/admin` and `/api/admin/*`, protected by `requireAdminSecret`
+- Never return `passwordHash` from an API, and never log responses from `/api/admin`
+
 ### Key Implementation Details
 - Uses GPT-4o Mini for reliable, cost-effective tax analysis
 - Structured JSON output for consistent response format

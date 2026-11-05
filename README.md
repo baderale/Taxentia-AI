@@ -606,6 +606,10 @@ LLM calls go through OpenRouter, using `openai/gpt-4o-mini` for answers and `ope
 - **On-Demand**: Via admin API (`POST /api/taxentia/admin/ingest`)
 - **Cost**: ~$0.05-0.10 per weekly update
 
+### **Users**
+
+Accounts and saved questions are stored in PostgreSQL once the current branch is deployed. People can sign up at `/auth?mode=signup`, and an admin can create users or reset passwords at `/admin` with `ADMIN_SECRET`. See [RAILWAY_DEPLOYMENT.md](RAILWAY_DEPLOYMENT.md).
+
 ### **Interface**
 
 The November 2026 redesign covers the landing, sign-in, research, answer and activity screens, on desktop and phones. Design rules for contributors are in [CLAUDE.md](CLAUDE.md#interface-design). It has been tested in a browser with mocked API responses, and still needs a test against a real server.

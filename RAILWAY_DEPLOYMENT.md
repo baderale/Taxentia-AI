@@ -15,7 +15,7 @@
 **Still open**
 - The Internal Revenue Code load is still running inside the app container. It requests sections 1-9834 from Cornell LII at one every 10 seconds, so it can take about 27 hours. 404s on section numbers that don't exist are normal.
 - Test sign-up and a real tax question on both addresses
-- Deploy the redesigned interface, which is on the branch but not live yet. Deploy only after the Code load finishes, because a redeploy stops it and it would have to start over.
+- Deploy the account storage fix and the redesigned interface, which are on the branch but not live yet. Deploy only after the Code load finishes, because a redeploy stops it and it would have to start over.
 - Confirm the weekly job's first scheduled run
 - Set a monthly spending limit on the OpenRouter key
 
@@ -34,6 +34,13 @@ EMBEDDING_PROVIDER_IGNORE=openai
 - Treasury Regulations: 6,015 regulations, 20,016 chunks, about $0.16
 - IRS Bulletins: 26 documents, 1,851 chunks, about $0.02
 - Each answer: estimated $0.0015
+
+**Managing users** (after the next deploy)
+- **People sign up themselves** at `https://www.taxentia.ai/auth?mode=signup`
+- **Create or reset a user** at `https://www.taxentia.ai/admin`. The admin key is the `ADMIN_SECRET` variable on the `taxentia` service in Railway. Generated passwords are shown once
+- **View the tables** in Railway under the `Postgres` service, on the Data tab: `users`, `tax_queries` and `user_sessions`
+- Passwords are stored only as bcrypt hashes, and saved questions and answers are in `tax_queries`
+- The current live version keeps accounts in memory, so any account created before this deploy is lost when it goes out
 
 **Things to know**
 - This project ignored `railway.json`. The start command and health check are set directly on the service, so changing the file has no effect here.
