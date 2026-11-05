@@ -1,3 +1,4 @@
+import { embeddingRequestOptions } from "@shared/embedding-options";
 import OpenAI from "openai";
 import type { Authority, TaxResponse } from "@shared/schema";
 import { qdrantService, type QdrantSearchResult } from "./qdrant-service";
@@ -234,6 +235,7 @@ INSTRUCTIONS: Analyze using authority hierarchy (IRC→Regs→Pubs→Rulings→C
     try {
       const response = await openai.embeddings.create({
         model: process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small",
+        ...embeddingRequestOptions(),
         input: text,
       });
       return response.data[0].embedding;

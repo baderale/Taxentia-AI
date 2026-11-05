@@ -8,6 +8,14 @@ import { openaiService } from "./services/openai-service";
 import { qdrantService } from "./services/qdrant-service";
 import passport from "passport";
 import { hashPassword, requireAuth } from "./auth";
+
+function requireAdminSecret(req: any, res: any, next: any) {
+  const expected = process.env.ADMIN_SECRET;
+  if (!expected || req.get("x-admin-secret") !== expected) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+  next();
+}
 import { db } from "./db";
 import { eq } from "drizzle-orm";
 // import { mockRetrievalService } from "./services/mock-retrieval";
@@ -198,12 +206,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get specific query
-  app.get("/api/queries/:id", async (req, res) => {
+  app.get("/api/queries/:id", requireAuth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const query = await storage.getTaxQuery(id);
       
-      if (!query) {
+      if (!query || query.userId !== req.user.id) {
         return res.status(404).json({ message: "Query not found" });
       }
 
@@ -244,7 +252,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update IRC sync status (called by n8n at sync start/end)
-  app.post("/api/taxentia/irc-last-sync", async (req, res) => {
+  app.post("/api/taxentia/irc-last-sync", requireAdminSecret, async (req, res) => {
     try {
       const { lastSyncDate, status, totalSections, indexedSections, errorMessage } = z.object({
         lastSyncDate: z.string().optional().nullable(),
@@ -272,7 +280,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate embedding for text (used by n8n workflow)
-  app.post("/api/taxentia/embed", async (req, res) => {
+  app.post("/api/taxentia/embed", requireAdminSecret, async (req, res) => {
     try {
       const { text } = z.object({
         text: z.string().min(1).max(10000)
@@ -293,7 +301,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Batch index IRC sections to Qdrant (called by n8n workflow)
-  app.post("/api/taxentia/index-irc-batch", async (req, res) => {
+  app.post("/api/taxentia/index-irc-batch", requireAdminSecret, async (req, res) => {
     try {
       const { points } = z.object({
         points: z.array(z.object({
@@ -396,7 +404,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { type = 'all', secret } = req.body;
 
       // Simple security check - require admin secret
-      if (secret !== process.env.ADMIN_SECRET) {
+      if (!process.env.ADMIN_SECRET || secret !== process.env.ADMIN_SECRET) {
         return res.status(401).json({ message: "Unauthorized" });
       }
 

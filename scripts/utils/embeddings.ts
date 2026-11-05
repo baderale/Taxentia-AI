@@ -1,3 +1,4 @@
+import { embeddingRequestOptions } from '../../shared/embedding-options';
 import OpenAI from 'openai';
 import type { Chunk } from './chunker.js';
 
@@ -32,6 +33,7 @@ export class EmbeddingsService {
       try {
         const response = await this.openai.embeddings.create({
           model: this.model,
+          ...embeddingRequestOptions(),
           input: batch.map((chunk) => chunk.text),
           encoding_format: 'float',
         });
@@ -68,6 +70,7 @@ export class EmbeddingsService {
     try {
       const response = await this.openai.embeddings.create({
         model: this.model,
+          ...embeddingRequestOptions(),
         input: text,
         encoding_format: 'float',
       });
