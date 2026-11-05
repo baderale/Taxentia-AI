@@ -193,7 +193,7 @@ npm run ingest:test         # Quick test (2 bulletins)
 npm run inspect:qdrant      # View ingested data statistics
 ```
 
-**Current Ingestion Status (as of Nov 2025):**
+**Last Recorded Ingestion Status (Nov 2025 deployment, not the current one):**
 - USC Title 26: ✅ Complete (1,612 sections → 3,730 chunks)
 - IRS Bulletins: ✅ 10 recent bulletins (27 documents → 409 chunks)
 - CFR Title 26: ⏳ Fetcher needs XML parsing fix (0 chunks)
@@ -572,33 +572,29 @@ open http://localhost:6333/dashboard
 
 ### **Current Production Architecture (Railway)**
 
-**Status**: ✅ **Deployed and operational on Railway**
+**Status (November 5, 2026):** Redeployed on Railway. The site is up at https://www.taxentia.ai, and `taxentia.ai` forwards to it. Tax questions are **not working yet** because `OPENAI_API_KEY` is not set and the tax data has not been loaded. The original November 2025 deployment is no longer active.
 
 ```
-Railway Production Environment
-├── Taxentia-AI (main application)
-│   ├── Express + React (port 8080)
+Railway project: taxentia (Hobby plan)
+├── taxentia (Express + React)
 │   ├── Health check: /api/health
-│   └── URL: https://taxentia-ai-production.up.railway.app
+│   ├── URL: https://www.taxentia.ai
+│   └── Railway URL: https://taxentia-production.up.railway.app
 │
-├── Qdrant (vector database)
-│   ├── Persistent volume: /qdrant/storage (5GB)
+├── qdrant (qdrant/qdrant:v1.15.5)
+│   ├── Volume: /qdrant/storage
 │   ├── Collection: taxentia-authorities
-│   └── Internal URL: qdrant.railway.internal:6333
+│   └── Private URL: http://qdrant.railway.internal:6333
 │
-├── PostgreSQL (database)
-│   ├── Railway managed addon
-│   └── Connection via DATABASE_URL
-│
-└── taxentia-ai-cron-irb (weekly updates)
-    ├── Schedule: Mondays at 3 AM Eastern
-    ├── Command: npm run ingest:irb -- 5
-    └── Auto-stops after completion
+└── Postgres (no public proxy)
+    └── Connected through DATABASE_URL
 ```
+
+LLM calls go through OpenRouter, using `openai/gpt-4o-mini` for answers and `openai/text-embedding-3-small` for embeddings. See [RAILWAY_DEPLOYMENT.md](RAILWAY_DEPLOYMENT.md) for setup and open items.
 
 ### **Automated Data Updates**
 
-- **Weekly IRS Bulletins**: Every Monday at 3:00 AM Eastern
+- **Weekly IRS Bulletins**: Planned, not yet set up on the current deployment
 - **On-Demand**: Via admin API (`POST /api/taxentia/admin/ingest`)
 - **Cost**: ~$0.05-0.10 per weekly update
 

@@ -244,7 +244,7 @@ INSTRUCTIONS: Analyze using authority hierarchy (IRC→Regs→Pubs→Rulings→C
   async generateEmbedding(text: string): Promise<number[]> {
     try {
       const response = await openai.embeddings.create({
-        model: "text-embedding-3-small",
+        model: process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small",
         input: text,
       });
       return response.data[0].embedding;

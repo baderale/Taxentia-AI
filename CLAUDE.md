@@ -63,6 +63,8 @@ The system generates structured tax analysis with:
 - `OPENAI_MODEL_NAME`: Model name (defaults to "gpt-4o-mini")
 - `QDRANT_URL`: Qdrant vector database URL (defaults to "http://localhost:6333")
 - `QDRANT_COLLECTION_NAME`: Target collection name (defaults to "taxentia-authorities")
+- `OPENAI_BASE_URL`: Optional OpenAI-compatible endpoint (production uses OpenRouter)
+- `OPENAI_EMBEDDING_MODEL`: Embedding model (defaults to "text-embedding-3-small")
 - `DATABASE_URL`: PostgreSQL connection string
 
 ### Key Implementation Details

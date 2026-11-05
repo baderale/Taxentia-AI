@@ -7,7 +7,7 @@ export interface EmbeddedChunk extends Chunk {
 
 export class EmbeddingsService {
   private openai: OpenAI;
-  private model: string = 'text-embedding-3-small';
+  private model: string = process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small';
   private batchSize: number = 40; // Reduced to stay under 300k token limit (each USC chunk ~2k chars = ~500 tokens, so 40 chunks ≈ 20k tokens << 300k)
 
   constructor(apiKey?: string) {

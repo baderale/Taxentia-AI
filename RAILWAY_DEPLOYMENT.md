@@ -1,5 +1,38 @@
 # Railway Deployment Guide
 
+## Current Deployment (November 5, 2026)
+
+**Done**
+- Railway project `taxentia` on the Hobby plan, with `taxentia`, `qdrant` and `Postgres` services
+- Database tables created
+- `www.taxentia.ai` connected through a GoDaddy CNAME, with a valid certificate
+- `taxentia.ai` forwarded to `https://www.taxentia.ai` with a GoDaddy 301
+- `SESSION_SECRET` and `ADMIN_SECRET` set
+
+**Still open**
+- Set `OPENAI_API_KEY` to an OpenRouter key on the `taxentia` service, with credit on the account
+- Load the tax data with `npm run ingest:all`, then confirm whether the CFR fetcher works
+- Create the weekly IRS bulletin job. `railway.cron.json` has no schedule, and the service does not exist yet
+- Test sign-up and a real tax question on both addresses
+
+**OpenRouter settings on the `taxentia` service**
+```bash
+OPENAI_BASE_URL=https://openrouter.ai/api/v1
+OPENAI_MODEL_NAME=openai/gpt-4o-mini
+OPENAI_EMBEDDING_MODEL=openai/text-embedding-3-small
+```
+
+**Things to know**
+- This project ignored `railway.json`. The start command and health check are set directly on the service, so changing the file has no effect here.
+- `railway redeploy` reuses the previous deployment's settings. Use `railway up` after changing them.
+- Railway is not connected to GitHub. Pushing to GitHub does not deploy; run `railway up --service taxentia`.
+- Postgres has no public proxy. Schema changes must run inside Railway's private network. To apply one, temporarily set the start command to `npx drizzle-kit push && npm run start`, run `railway up`, then set it back to `npm run start`.
+- Always set `ADMIN_SECRET`. If it is missing, the admin ingest endpoint accepts requests that send no secret.
+- Always set `SESSION_SECRET`. If it is missing, the app falls back to a publicly known default.
+- GoDaddy cannot point the root domain directly at Railway, so the root domain forwards to `www`.
+
+The steps below are the original guide from November 2025.
+
 ## Prerequisites
 1. Railway account at https://railway.app
 2. Railway CLI installed: `npm install -g @railway/cli`

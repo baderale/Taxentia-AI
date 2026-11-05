@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - OpenRouter support (2026-11-05)
+- Embedding model is now configurable with `OPENAI_EMBEDDING_MODEL` (default `text-embedding-3-small`)
+- Production uses OpenRouter through `OPENAI_BASE_URL`, with `openai/gpt-4o-mini` and `openai/text-embedding-3-small`
+- Redeployed to a new Railway project after the original deployment was found inactive
+- Updated README and deployment guide with the current status and open items
+
 ### Added - Specialized AI Review Agents (2025-01-03)
 
 #### Agent System Architecture
