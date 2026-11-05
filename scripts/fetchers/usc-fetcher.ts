@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { XMLParser } from 'fast-xml-parser';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import AdmZip from 'adm-zip';
@@ -10,19 +9,54 @@ export interface USCSection {
   title: string;
   text: string;
   url: string;
+  versionDate?: string;
+}
+
+// Used only if the download page can't be read. Update it when a newer release is known.
+const FALLBACK_RELEASE = { congress: '119', law: '136' };
+
+const BLOCK_TAGS = /<\/?(?:subsection|paragraph|subparagraph|clause|subclause|item|subitem|chapeau|continuation|content|p|tr)\b[^>]*>/g;
+const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
+
+function decodeEntities(text: string): string {
+  return text.replace(/&(#x?[0-9a-fA-F]+|\w+);/g, (match, code: string) => {
+    if (code.startsWith('#x')) return String.fromCodePoint(parseInt(code.slice(2), 16));
+    if (code.startsWith('#')) return String.fromCodePoint(parseInt(code.slice(1), 10));
+    return ENTITIES[code] ?? match;
+  });
+}
+
+/** Turns one section's XML into readable text, keeping words and references in their original order. */
+function xmlToText(xml: string): string {
+  const text = xml
+    .replace(/<\/heading>/g, ' ')
+    .replace(/<\/(?:td|th)>/g, ' ')
+    .replace(BLOCK_TAGS, '\n\n')
+    .replace(/<[^>]+>/g, '');
+  return decodeEntities(text)
+    .replace(/[ \t\u00a0\u202f]+/g, ' ')
+    .replace(/ *\n\s*/g, '\n\n')
+    .trim();
 }
 
 export class USCFetcher {
   private baseUrl = 'https://uscode.house.gov/download';
-  private xmlParser: XMLParser;
+  private release = FALLBACK_RELEASE;
 
-  constructor() {
-    this.xmlParser = new XMLParser({
-      ignoreAttributes: false,
-      attributeNamePrefix: '@_',
-      textNodeName: '#text',
-      ignoreDeclaration: true, // Ignore <?xml?> declaration
-    });
+  /** Finds the current release, such as Public Law 119-136, from the official download page. */
+  private async findLatestRelease(): Promise<{ congress: string; law: string }> {
+    try {
+      const page = await axios.get<string>(`${this.baseUrl}/download.shtml`, {
+        headers: { 'User-Agent': 'Taxentia-AI/1.0 (Tax Research Application)' },
+        timeout: 30000,
+      });
+      const match = String(page.data).match(/Public Law (\d+)-(\d+)/);
+      if (match) return { congress: match[1], law: match[2] };
+      console.warn('⚠️ No release found on the download page, using the fallback release');
+    } catch (error) {
+      console.warn('⚠️ Could not read the download page, using the fallback release');
+    }
+    return FALLBACK_RELEASE;
   }
 
   /**
@@ -30,6 +64,10 @@ export class USCFetcher {
    */
   async downloadTitle26XML(): Promise<string> {
     console.log('📥 Downloading US Code Title 26 XML (ZIP file)...');
+
+    this.release = await this.findLatestRelease();
+    const { congress, law } = this.release;
+    console.log(`📌 Using release Public Law ${congress}-${law}`);
 
     const maxRetries = 3;
     const timeouts = [180000, 300000, 420000]; // 3min, 5min, 7min
@@ -41,7 +79,7 @@ export class USCFetcher {
         console.log(`🔄 Attempt ${attempt + 1}/${maxRetries} (timeout: ${timeout / 1000}s)...`);
 
         // The actual download URL for Title 26 XML (it's a ZIP file!)
-        const downloadUrl = `${this.baseUrl}/releasepoints/us/pl/119/36/xml_usc26@119-36.zip`;
+        const downloadUrl = `${this.baseUrl}/releasepoints/us/pl/${congress}/${law}/xml_usc26@${congress}-${law}.zip`;
 
         const response = await axios.get(downloadUrl, {
           responseType: 'arraybuffer',
@@ -102,134 +140,56 @@ export class USCFetcher {
   }
 
   /**
-   * Parse XML and extract sections
+   * Extracts current sections from the USLM XML. Each section is found by its identifier, so
+   * it doesn't matter how deeply it is nested. Repealed, renumbered, omitted and reserved
+   * sections are skipped, and so are editorial notes and source credits.
    */
   async parseTitle26XML(xmlContent: string): Promise<USCSection[]> {
     console.log('🔍 Parsing Title 26 XML...');
 
+    const starts = Array.from(
+      xmlContent.matchAll(/<section\b[^>]*\bidentifier="\/us\/usc\/t26\/s([^"\/]+)"[^>]*>/g),
+    );
+    if (starts.length === 0) {
+      throw new Error('Failed to parse Title 26 XML: no sections found');
+    }
+
+    const { congress, law } = this.release;
     const sections: USCSection[] = [];
 
-    try {
-      const parsed = this.xmlParser.parse(xmlContent);
+    starts.forEach((start, index) => {
+      if (/\bstatus="/.test(start[0]) || start[1].includes('...')) return;
 
-      // Navigate USLM XML structure: uscDoc → main → title → subtitle → chapter → subchapter → part → section
-      const uscDoc = parsed.uscDoc;
-      if (!uscDoc) {
-        throw new Error('Invalid USLM XML: missing uscDoc root element');
+      const from = start.index! + start[0].length;
+      const to = starts[index + 1]?.index ?? xmlContent.length;
+      let body = xmlContent.slice(from, to);
+
+      const endMarkers = ['<notes', '<sourceCredit'].map((tag) => body.indexOf(tag)).filter((at) => at >= 0);
+      if (endMarkers.length > 0) {
+        body = body.slice(0, Math.min(...endMarkers));
+      } else if (body.includes('</section>')) {
+        body = body.slice(0, body.lastIndexOf('</section>'));
       }
 
-      const main = uscDoc.main;
-      if (!main) {
-        throw new Error('Invalid USLM XML: missing main element');
-      }
+      const sectionNum = start[1].replace(/[\u2013\u2014]/g, '-');
+      const heading = body.match(/<heading[^>]*>([\s\S]*?)<\/heading>/);
+      const text = xmlToText(body);
+      if (text.length <= 50) return;
 
-      const title = main.title;
-      if (!title) {
-        throw new Error('Invalid USLM XML: missing title element');
-      }
+      sections.push({
+        citation: `26 U.S.C. § ${sectionNum}`,
+        section: sectionNum,
+        title: heading ? decodeEntities(heading[1].replace(/<[^>]+>/g, '')).trim().replace(/\.$/, '') : `Section ${sectionNum}`,
+        text,
+        url: `https://www.law.cornell.edu/uscode/text/26/${sectionNum}`,
+        versionDate: `Public Law ${congress}-${law}`,
+      });
+    });
 
-      // Extract sections recursively from the title
-      this.extractSections(title, sections);
-
-      console.log(`✅ Parsed ${sections.length} sections from Title 26`);
-      return sections;
-    } catch (error) {
-      console.error('❌ Failed to parse XML:', error);
-      throw new Error('Failed to parse Title 26 XML');
-    }
+    console.log(`✅ Parsed ${sections.length} current sections from ${starts.length} in Title 26`);
+    return sections;
   }
 
-  /**
-   * Recursively extract sections from USLM XML structure
-   * USLM hierarchy: title → subtitle → chapter → subchapter → part → section
-   */
-  private extractSections(node: any, sections: USCSection[]): void {
-    if (!node) return;
-
-    // Check if this node contains sections
-    if (node.section) {
-      const sectionArray = Array.isArray(node.section) ? node.section : [node.section];
-
-      for (const section of sectionArray) {
-        // Extract section number from num element or @_identifier
-        let sectionNum = '';
-        if (section.num) {
-          if (typeof section.num === 'object' && section.num['@_value']) {
-            sectionNum = section.num['@_value'];
-          } else if (typeof section.num === 'string') {
-            sectionNum = section.num.replace(/§\s*/g, '').trim();
-          }
-        }
-        if (!sectionNum && section['@_identifier']) {
-          // Extract section number from identifier like "/us/usc/t26/s1"
-          const match = section['@_identifier'].match(/\/s(\d+[A-Za-z]?)/);
-          if (match) sectionNum = match[1];
-        }
-
-        // Extract heading
-        let heading = '';
-        if (section.heading) {
-          heading = typeof section.heading === 'string' ? section.heading : this.extractTextContent(section.heading);
-        }
-
-        // Extract text content
-        const content = this.extractTextContent(section);
-
-        if (sectionNum && content && content.length > 50) {
-          sections.push({
-            citation: `26 U.S.C. § ${sectionNum}`,
-            section: sectionNum,
-            title: heading.trim(),
-            text: content,
-            url: `https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title26-section${sectionNum}`,
-          });
-        }
-      }
-    }
-
-    // Recursively traverse the hierarchical structure
-    // Process: subtitle → chapter → subchapter → part (each may contain sections)
-    const hierarchyKeys = ['subtitle', 'chapter', 'subchapter', 'part'];
-
-    for (const key of hierarchyKeys) {
-      if (node[key]) {
-        const children = Array.isArray(node[key]) ? node[key] : [node[key]];
-        for (const child of children) {
-          this.extractSections(child, sections);
-        }
-      }
-    }
-  }
-
-  /**
-   * Extract text content from a node
-   */
-  private extractTextContent(node: any): string {
-    if (!node) return '';
-
-    let text = '';
-
-    if (typeof node === 'string') {
-      return node;
-    }
-
-    if (node['#text']) {
-      text += node['#text'] + ' ';
-    }
-
-    // Recursively extract text from children
-    for (const key in node) {
-      if (key !== '@_' && key !== '#text' && typeof node[key] === 'object') {
-        text += this.extractTextContent(node[key]);
-      }
-    }
-
-    return text.trim();
-  }
-
-  /**
-   * Fetch all Title 26 sections
-   */
   async fetchAll(): Promise<USCSection[]> {
     console.log('🚀 Starting USC Title 26 fetch...');
 

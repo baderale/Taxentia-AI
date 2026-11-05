@@ -82,6 +82,29 @@ JSON RESPONSE FORMAT:
   "disclaimer": "This analysis is for informational purposes for qualified tax professionals and is not legal or tax advice. All conclusions should be independently verified and professional judgment applied."
 }`;
 
+/** Maps the source labels stored in Qdrant to the authority types used in answers. */
+function toAuthorityType(sourceType: unknown): string {
+  if (sourceType === "usc") return "irc";
+  if (sourceType === "cfr") return "regs";
+  return "rulings";
+}
+
+const AUTHORITY_TYPES = ["irc", "regs", "pubs", "rulings", "cases"];
+const MAX_CONCLUSION_LENGTH = 800; // Limit in taxResponseSchema
+
+/** Models sometimes send null for optional fields, which the response schema rejects. */
+function dropNulls(value: any): any {
+  if (Array.isArray(value)) return value.map(dropNulls);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([, item]) => item !== null)
+        .map(([key, item]) => [key, dropNulls(item)]),
+    );
+  }
+  return value;
+}
+
 class GPT4oMiniService {
 
   async generateTaxResponse(query: string): Promise<TaxResponse> {
@@ -95,8 +118,9 @@ class GPT4oMiniService {
 
       // 3. Construct context from retrieved chunks
       let contextText = searchResults
-        .map((match: QdrantSearchResult) => match.payload?.text)
-        .filter(text => text)
+        .filter((match: QdrantSearchResult) => match.payload?.text)
+        .map((match: QdrantSearchResult) =>
+          `[SOURCE: ${match.payload?.citation ?? "Unknown citation"}, ${match.payload?.title ?? "Untitled"}]\n${match.payload?.text}`)
         .join('\n\n');
 
       const MAX_CONTEXT_LENGTH = 12000;
@@ -118,15 +142,15 @@ class GPT4oMiniService {
 
       const authorities = searchResults.map((match: QdrantSearchResult) => {
         return {
-          sourceType: match.payload?.sourceType,
+          sourceType: toAuthorityType(match.payload?.source_type),
           citation: match.payload?.citation,
           title: match.payload?.title,
           section: match.payload?.section,
           url: match.payload?.url,
-          directUrl: this.generateDirectUrl(match.payload?.sourceType, match.payload?.citation, match.payload?.url),
+          directUrl: this.generateDirectUrl(toAuthorityType(match.payload?.source_type), match.payload?.citation, match.payload?.url),
           versionDate: match.payload?.versionDate,
-          effectiveDate: this.getEffectiveDate(match.payload?.sourceType, match.payload?.versionDate),
-          chunkId: match.id,
+          effectiveDate: this.getEffectiveDate(toAuthorityType(match.payload?.source_type), match.payload?.versionDate),
+          chunkId: String(match.id),
           content: match.payload?.text,
         };
       });
@@ -136,7 +160,7 @@ class GPT4oMiniService {
 Retrieved Authority Context:
 ${contextText}
 
-INSTRUCTIONS: Analyze using authority hierarchy (IRC→Regs→Pubs→Rulings→Cases). Generate precise pinpoint citations. Include direct URLs when possible. Provide actionable procedural guidance. Be comprehensive but token-efficient.`;
+INSTRUCTIONS: Each passage above is labeled with its [SOURCE]. Base your answer on these passages, and in "authority" list only sources labeled above, using those citations. If the passages don't answer the question, say so plainly and lower the confidence score. Don't cite from memory. Analyze using authority hierarchy (IRC→Regs→Pubs→Rulings→Cases). Generate precise pinpoint citations. Include direct URLs when possible. Provide actionable procedural guidance. Be comprehensive but token-efficient.`;
 
       // 4. Generate response using GPT-4o Mini
       const response = await this.generateWithGPT4oMini(userPrompt, authorities);
@@ -222,7 +246,22 @@ INSTRUCTIONS: Analyze using authority hierarchy (IRC→Regs→Pubs→Rulings→C
     }
   }
 
-  private enrichAuthorities(parsedResponse: any, authorities: any[]): TaxResponse {
+  private enrichAuthorities(modelResponse: any, authorities: any[]): TaxResponse {
+    const parsedResponse = dropNulls(modelResponse);
+
+    if (typeof parsedResponse.conclusion === "string" && parsedResponse.conclusion.length > MAX_CONCLUSION_LENGTH) {
+      parsedResponse.conclusion = `${parsedResponse.conclusion.slice(0, MAX_CONCLUSION_LENGTH - 3)}...`;
+    }
+
+    if (Array.isArray(parsedResponse.analysis)) {
+      parsedResponse.analysis = parsedResponse.analysis.map((step: any) => ({
+        ...step,
+        authorityRefs: Array.isArray(step.authorityRefs)
+          ? step.authorityRefs.filter((ref: unknown) => typeof ref === "number")
+          : [],
+      }));
+    }
+
     if (parsedResponse.authority) {
       parsedResponse.authority = parsedResponse.authority.map((authRef: any) => {
         const matchingAuth = authorities.find(auth =>
@@ -231,9 +270,11 @@ INSTRUCTIONS: Analyze using authority hierarchy (IRC→Regs→Pubs→Rulings→C
 
         return {
           ...authRef,
+          sourceType: matchingAuth?.sourceType
+            ?? (AUTHORITY_TYPES.includes(authRef.sourceType) ? authRef.sourceType : "rulings"),
           url: matchingAuth?.url || authRef.url || "#",
           directUrl: matchingAuth?.directUrl || authRef.directUrl || this.generateDirectUrl(authRef.sourceType, authRef.citation, authRef.url),
-          versionDate: matchingAuth?.versionDate || authRef.versionDate || "2025-01-01",
+          versionDate: matchingAuth?.versionDate || authRef.versionDate || "Unknown",
           effectiveDate: matchingAuth?.effectiveDate || authRef.effectiveDate || this.getEffectiveDate(authRef.sourceType, authRef.versionDate),
           chunkId: matchingAuth?.chunkId || authRef.chunkId,
         };

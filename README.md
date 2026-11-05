@@ -148,7 +148,7 @@ Taxentia includes custom TypeScript fetchers that download and parse official ta
 
 | Source | Fetcher | Content | Status |
 |--------|---------|---------|--------|
-| **US Code Title 26** | `usc-fetcher.ts`, `cornell-lii-fetcher.ts` | Internal Revenue Code (2,149 sections in the official file) | ⚠️ Incomplete, needs the fix in the deployment guide |
+| **US Code Title 26** | `usc-fetcher.ts` | Internal Revenue Code, from the official House file (1,900 current sections, skipping repealed ones) | ✅ Tested locally |
 | **CFR Title 26** | `cfr-fetcher.ts` | Treasury Regulations (full title) | ✅ Production-ready |
 | **IRS Bulletins** | `irb-fetcher.ts` | Revenue Rulings, Procedures, Notices, Treasury Decisions | ✅ Production-ready |
 

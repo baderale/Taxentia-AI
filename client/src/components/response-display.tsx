@@ -126,7 +126,7 @@ export default function ResponseDisplay({ response }: ResponseDisplayProps) {
                       <p className="mt-2 text-xs text-muted-foreground" data-testid={`authority-type-${index}`}>
                         {AUTHORITY_TYPE[item.sourceType] ?? "Authority"}
                       </p>
-                      {(item.effectiveDate || item.versionDate) && (
+                      {(item.effectiveDate || (item.versionDate && item.versionDate !== "Unknown")) && (
                         <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                           <Calendar className="h-3 w-3" />
                           {item.effectiveDate || `Version ${item.versionDate}`}
